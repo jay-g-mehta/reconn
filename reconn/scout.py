@@ -1,6 +1,5 @@
 import os
 import sys
-import signal
 import io
 import time
 import threading
@@ -13,6 +12,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from reconn import utils as reconn_utils
+from reconn import timeout as reconn_timeout
 
 
 CONF = cfg.CONF
@@ -37,25 +37,29 @@ class FileEventHandler(watchdog.events.FileSystemEventHandler):
             return False
 
     def on_any_event(self, event):
-        LOG.info("Event type:%s is_directory:%s src_path:%s",
+        LOG.info("Event type:%s is_directory:%s src_path:%s" % (
                  event.event_type,
                  event.is_directory,
-                 event.src_path)
-        # LOG.debug("%s %s", threading.current_thread().ident,
-        #           threading.current_thread().name)
+                 event.src_path))
+        # LOG.debug("%s %s" % (threading.current_thread().ident,
+        #           threading.current_thread().name))
 
     def on_modified(self, event):
-        # LOG.debug("%s %s", threading.current_thread().ident,
-        #           threading.current_thread().name)
+        # LOG.debug("%s %s" % (threading.current_thread().ident,
+        #           threading.current_thread().name))
 
         # NOTE(jay):
         # Any processing on any handler function blocks
         # delivery/invoking of other handler function
         # time.sleep(5)
-        global end_reconn
+
         if self._event_on_file_path(event):
-            if end_reconn is False:
-                lock_reconn_file(self._file)
+            if reconn_timeout.ReconnTimeout.is_timed_out() is False:
+                # Allow main thread to gain control & terminate.
+                # TODO(jay): If possible, stop observer here.
+                time.sleep(1)
+
+            lock_reconn_file(self._file)
 
 
 def register_notification(file_path, file_obj):
@@ -79,7 +83,9 @@ def reconn_file(f):
     global last_line
 
     eof = False
-    while not eof:
+    while(not eof and
+              not end_reconn and
+              not reconn_timeout.ReconnTimeout.is_timed_out()):
         line = f.readline()
 
         if line == '':
@@ -108,7 +114,10 @@ def reconn_file(f):
         print line
 
     # Reconn last line for patterns:
-    if end_reconn is False and eof is True and last_line != '':
+    if (end_reconn is False and
+            reconn_timeout.ReconnTimeout.is_timed_out() is False and
+            eof is True and
+            last_line != ''):
 
         matched_pattern = reconn_utils.search_patterns(survey_pattern_re_objs,
                                                        last_line)
@@ -147,33 +156,14 @@ def reconn_forever(console_file, observer):
         while True:
             time.sleep(1)
 
-            if end_reconn is True:
+            if (end_reconn is True or
+                    reconn_timeout.ReconnTimeout.is_timed_out() is True):
                 terminate_reconn(observer, console_file)
     except KeyboardInterrupt:
         terminate_reconn(observer, console_file)
 
     # Allow observer thread to run forever and so this process
     observer.join()
-
-
-class ReconnTimeout(object):
-    @staticmethod
-    def clear_timeout():
-        '''De-register to receive SIGALRM for timeouts'''
-        signal.alarm(0)
-
-    @staticmethod
-    def set_timeout(timeout):
-        '''Register to receive SIGALRM for timeout'''
-        signal.signal(signal.SIGALRM, ReconnTimeout.reconn_timeout_handler)
-        signal.alarm(timeout)
-
-    @staticmethod
-    def reconn_timeout_handler(signum, stack_frame):
-        global end_reconn
-        end_reconn = True
-        ReconnTimeout.clear_timeout()
-        LOG.info("Reconn timed out")
 
 
 def init_reconn():
@@ -194,7 +184,7 @@ def terminate_reconn(observer, console_file):
     sys.exit(0)
 
 
-def main():
+def begin_reconn():
     global survey_pattern_re_objs
 
     init_reconn()
@@ -215,11 +205,10 @@ def main():
     observer = register_notification(CONF.reconn.console_path, console_file)
 
     # Set program terminate time out
-    ReconnTimeout.set_timeout(CONF.reconn.timeout * 60)
+    reconn_timeout.ReconnTimeout.set_timeout(CONF.reconn.timeout * 60)
 
     reconn_forever(console_file, observer)
 
 
-
 if __name__ == '__main__':
-    main()
+    begin_reconn()

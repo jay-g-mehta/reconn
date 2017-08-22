@@ -118,7 +118,7 @@ def search_patterns(re_objs, line):
             pass
         else:
             # pattern in line
-            LOG.info("Matched %s in line:%s", re_obj.pattern, line)
+            LOG.info("Matched %s in line: %s" % (re_obj.pattern, line))
             return re_obj.pattern
     return None
 
@@ -130,8 +130,8 @@ def search_end_reconn_pattern(line):
     if re.search(end_reconn_pattern, line) is None:
         return None
     else:
-        LOG.info("Matched End Reconn pattern: %s in line: %s",
-                 end_reconn_pattern, line)
+        LOG.info("Matched End Reconn pattern: %s in line: %s" % (
+                 end_reconn_pattern, line))
         return end_reconn_pattern
 
 

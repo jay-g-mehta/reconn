@@ -1,8 +1,12 @@
 # RECONN
-RECONN (short for reconnaissance) is a surveying/observatory tool of VM instance boot stages.
+RECONN (short for reconnaissance) is a surveying/observatory tool on a
+given file. It monitors file continuously to look out for defined patterns.
 
-RECONN will REad CONtinuosly console.log file of a VM instance, as the contents are
-written to it.
+RECONN will REad CONtinuously a file, as and when the contents are written
+to it, by another process(es). For defined set of regular expressions, RECONN
+tool will log for every match.
+
+This is useful for to monitor any log file for a set of events.
 
 ## Download, Setup and Installing RECONN
 ```
