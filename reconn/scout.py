@@ -166,12 +166,16 @@ def reconn_forever(console_file, observer):
     observer.join()
 
 
-def init_reconn():
+def init_reconn(argv):
+    global survey_pattern_re_objs
+
     reconn_utils.register_reconn_opts()
-    reconn_utils.oslo_logger_config_setup()
+    reconn_utils.oslo_logger_config_setup(argv)
 
     for survey_pattern_group in reconn_utils.get_reconn_survey_groups():
         reconn_utils.register_reconn_survey_patterns(survey_pattern_group)
+
+    survey_pattern_re_objs = reconn_utils.create_re_objs()
 
 
 def terminate_reconn(observer, console_file):
@@ -185,9 +189,6 @@ def terminate_reconn(observer, console_file):
 
 
 def begin_reconn():
-    global survey_pattern_re_objs
-
-    init_reconn()
     LOG.info("console_path: %s", CONF.reconn.console_path)
     try:
         console_file = io.open(CONF.reconn.console_path, 'rt', newline='\n')
@@ -200,8 +201,6 @@ def begin_reconn():
         LOG.info("Exiting")
         exit(1)
 
-    survey_pattern_re_objs = reconn_utils.create_re_objs()
-
     observer = register_notification(CONF.reconn.console_path, console_file)
 
     # Set program terminate time out
@@ -210,5 +209,11 @@ def begin_reconn():
     reconn_forever(console_file, observer)
 
 
-if __name__ == '__main__':
+def main():
+    '''Invoked when running reconn directly'''
+    init_reconn(sys.argv[1:])
     begin_reconn()
+
+
+if __name__ == '__main__':
+    main()
