@@ -11,14 +11,14 @@ CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
 
-def oslo_logger_config_setup():
+def oslo_logger_config_setup(argv):
     '''Register oslo logger opts.
     Initialize oslo config CONF
     '''
 
     logging.register_options(CONF)
 
-    CONF(sys.argv[1:], project='reconn',
+    CONF(argv, project='reconn',
          version=version.version_string())
     logging.setup(CONF, "reconn")
 
