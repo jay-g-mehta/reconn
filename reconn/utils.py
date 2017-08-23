@@ -27,7 +27,7 @@ def register_reconn_opts():
     '''Register reconn opts'''
 
     reconn_opts = [
-        cfg.StrOpt('console_path',
+        cfg.StrOpt('target_file',
                    default=None,
                    help='Absolute file path of console.log '
                         'of a VM instance, RECONN is supposed '
@@ -91,7 +91,7 @@ def _register_reconn_survey_config(survey_pattern_group):
     reconn_survey_opt_group = cfg.OptGroup(name=survey_pattern_group,
                                            title='RECONN survey pattern:' +
                                                  survey_pattern_group)
-
+    CONF.register_group(reconn_survey_opt_group)
     CONF.register_opts(reconn_survey_pattern_opts,
                        group=reconn_survey_opt_group)
 
@@ -100,6 +100,7 @@ def register_reconn_survey_groups():
     '''Dynamically register all configured survey config group and its opts'''
     for survey_pattern_group in get_reconn_survey_groups():
         _register_reconn_survey_config(survey_pattern_group)
+        LOG.debug("Registered pattern: %s", survey_pattern_group)
 
 
 def get_reconn_survey_groups():
@@ -115,6 +116,7 @@ def create_re_objs():
     re_objs = []
     for survey_group_name in get_reconn_survey_groups():
         re_objs.append(re.compile(CONF.get(survey_group_name).pattern))
+
     return re_objs
 
 
@@ -127,7 +129,8 @@ def search_patterns(re_objs, line):
             pass
         else:
             # pattern in line
-            LOG.info("Matched %s in line: %s" % (re_obj.pattern, line))
+            s = "Matched %s in line: %s" % (re_obj.pattern, line)
+            LOG.debug(s)
             return re_obj.pattern
     return None
 
