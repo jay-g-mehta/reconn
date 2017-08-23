@@ -1,10 +1,10 @@
-import sys
 import re
-
-from reconn import version
 
 from oslo_config import cfg
 from oslo_log import log as logging
+
+from reconn import version
+from reconn import action as reconn_action
 
 
 CONF = cfg.CONF
@@ -60,7 +60,7 @@ def register_reconn_opts():
 
 
 def _register_reconn_survey_opts(reconn_opt_group):
-    '''Register reconn survey opts'''
+    """Register reconn option 'survey_group'"""
     reconn_survey_opts = [
         cfg.StrOpt('survey_group',
                    default=None,
@@ -73,15 +73,16 @@ def _register_reconn_survey_opts(reconn_opt_group):
     CONF.register_opts(reconn_survey_opts, group=reconn_opt_group)
 
 
-def register_reconn_survey_patterns(survey_pattern_group):
-    '''Dynamically register each survey pattern'''
+def _register_reconn_survey_config(survey_pattern_group):
+    '''Dynamically register a survey config group and its opts'''
     reconn_survey_pattern_opts = [
         cfg.StrOpt('pattern',
                    default=None,
                    help=''),
         cfg.StrOpt('success',
-                   default=None,
-                   help=''),
+                   default='LogSurvey',
+                   choices=reconn_action.supported_actions,
+                   help='Action when pattern match'),
         cfg.StrOpt('failure',
                    default=None,
                    help=''),
@@ -91,10 +92,18 @@ def register_reconn_survey_patterns(survey_pattern_group):
                                            title='RECONN survey pattern:' +
                                                  survey_pattern_group)
 
-    CONF.register_opts(reconn_survey_pattern_opts, group=reconn_survey_opt_group)
+    CONF.register_opts(reconn_survey_pattern_opts,
+                       group=reconn_survey_opt_group)
+
+
+def register_reconn_survey_groups():
+    '''Dynamically register all configured survey config group and its opts'''
+    for survey_pattern_group in get_reconn_survey_groups():
+        _register_reconn_survey_config(survey_pattern_group)
 
 
 def get_reconn_survey_groups():
+    '''Get list of names of configured survey groups'''
     group_list = CONF.reconn.survey_group.split(",")
     for i in range(len(group_list)):
         group_list[i] = group_list[i].strip(" ")
@@ -124,7 +133,7 @@ def search_patterns(re_objs, line):
 
 
 def search_end_reconn_pattern(line):
-    '''Search end reconn pattern in line'''
+    '''Search and return end reconn pattern in line or None'''
     reconn_end_group_name = CONF.reconn.end_reconn
     end_reconn_pattern = CONF.get(reconn_end_group_name).pattern
     if re.search(end_reconn_pattern, line) is None:
@@ -143,3 +152,24 @@ def is_pattern_to_end_reconn(pattern):
         return True
     else:
         return False
+
+
+def get_survey_success_action_name(pattern):
+    '''For a given survey pattern, get its configured success action name.
+    None on failure'''
+
+    for survey_group_name in get_reconn_survey_groups():
+        if CONF.get(survey_group_name).pattern == pattern:
+            return CONF.get(survey_group_name).success
+    return None
+
+
+def get_configured_survey_success_action_names():
+    '''Returns a list of unique success action name
+    for all registered survey groups'''
+
+    action_names = []
+    for survey_group_name in get_reconn_survey_groups():
+        if CONF.get(survey_group_name).success not in action_names:
+            action_names.append(CONF.get(survey_group_name).success)
+    return action_names
