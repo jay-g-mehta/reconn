@@ -129,10 +129,10 @@ def reconn_file(f):
 
         matched_pattern = reconn_utils.search_patterns(survey_pattern_re_objs,
                                                        last_line)
+        act_on_pattern(matched_pattern, last_line)
         if matched_pattern is not None:
             # Some pattern matched. No longer to carry last_line's content.
             last_line = ''
-            act_on_pattern(matched_pattern, line)
 
         if reconn_utils.is_pattern_to_end_reconn(matched_pattern):
             # End Reconn pattern matched
