@@ -34,7 +34,7 @@ class LogSurvey(SurveyAction):
     """Action that logs matched survey patterns"""
     def __init__(self, log_file):
         # TODO(Jay): accept log format too.
-        self.log_format = 'Matched pattern: %s in line: %s'
+        self.log_format = 'Matched pattern: %s in line: %s \n'
         self.f = None
         self.f = io.open(log_file, 'a')
 
