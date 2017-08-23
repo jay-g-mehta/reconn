@@ -116,10 +116,10 @@ def reconn_file(f):
             if reconn_utils.is_pattern_to_end_reconn(matched_pattern):
                 # End Reconn pattern matched
                 end_reconn = True
-                print line
+                print line.rstrip('\n')
                 return
 
-        print line
+        print line.rstrip('\n')
 
     # Reconn last line for patterns:
     if (end_reconn is False and
@@ -203,19 +203,19 @@ def terminate_reconn(observer, console_file):
 
 
 def begin_reconn():
-    LOG.info("console_path: %s", CONF.reconn.console_path)
+    LOG.info("Reconn target file: %s", CONF.reconn.target_file)
     try:
-        console_file = io.open(CONF.reconn.console_path, 'rt', newline='\n')
+        console_file = io.open(CONF.reconn.target_file, 'rt', newline='\n')
     except (IOError, TypeError) as e:
         LOG.error("Failed to open console log file. Error: %s", e)
         LOG.info("Exiting")
-        exit(1)
+        sys.exit(1)
     except Exception as e:
         LOG.error("Failed to open console log file. Error: %s", e)
         LOG.info("Exiting")
-        exit(1)
+        sys.exit(1)
 
-    observer = register_notification(CONF.reconn.console_path, console_file)
+    observer = register_notification(CONF.reconn.target_file, console_file)
 
     # Set program terminate time out
     reconn_timeout.ReconnTimeout.set_timeout(CONF.reconn.timeout * 60)
