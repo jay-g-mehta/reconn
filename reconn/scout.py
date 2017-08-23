@@ -13,6 +13,7 @@ from oslo_log import log as logging
 
 from reconn import utils as reconn_utils
 from reconn import timeout as reconn_timeout
+from reconn import action as reconn_action
 
 
 CONF = cfg.CONF
@@ -21,6 +22,7 @@ LOG = logging.getLogger(__name__)
 file_lock = threading.Lock()
 survey_pattern_re_objs = None
 end_reconn = False
+last_line = ''
 
 
 class FileEventHandler(watchdog.events.FileSystemEventHandler):
@@ -74,7 +76,12 @@ def register_notification(file_path, file_obj):
     return observer
 
 
-last_line = ''
+def act_on_pattern(matched_pattern, line):
+    if matched_pattern is None:
+        return
+    action_name = reconn_utils.get_survey_success_action_name(matched_pattern)
+    survey_action = reconn_action.get_survey_action(action_name)
+    survey_action.execute(matched_pattern, line)
 
 
 def reconn_file(f):
@@ -105,6 +112,7 @@ def reconn_file(f):
             # readline returned due to \n
             matched_pattern = reconn_utils.search_patterns(survey_pattern_re_objs,
                                                            line)
+            act_on_pattern(matched_pattern, line)
             if reconn_utils.is_pattern_to_end_reconn(matched_pattern):
                 # End Reconn pattern matched
                 end_reconn = True
@@ -124,6 +132,7 @@ def reconn_file(f):
         if matched_pattern is not None:
             # Some pattern matched. No longer to carry last_line's content.
             last_line = ''
+            act_on_pattern(matched_pattern, line)
 
         if reconn_utils.is_pattern_to_end_reconn(matched_pattern):
             # End Reconn pattern matched
@@ -172,10 +181,14 @@ def init_reconn(argv):
     reconn_utils.register_reconn_opts()
     reconn_utils.oslo_logger_config_setup(argv)
 
-    for survey_pattern_group in reconn_utils.get_reconn_survey_groups():
-        reconn_utils.register_reconn_survey_patterns(survey_pattern_group)
+    reconn_utils.register_reconn_survey_groups()
 
     survey_pattern_re_objs = reconn_utils.create_re_objs()
+
+    success_action_names = None
+    success_action_names = \
+        reconn_utils.get_configured_survey_success_action_names()
+    reconn_action.register_survey_actions(success_action_names)
 
 
 def terminate_reconn(observer, console_file):
@@ -185,6 +198,7 @@ def terminate_reconn(observer, console_file):
     observer.stop()
     observer.join()
     console_file.close()
+    reconn_action.deregister_survey_actions()
     sys.exit(0)
 
 
