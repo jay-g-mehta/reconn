@@ -167,39 +167,38 @@ def reconn_forever(console_file, observer):
 
             if (end_reconn is True or
                     reconn_timeout.ReconnTimeout.is_timed_out() is True):
-                terminate_reconn(observer, console_file)
+                break
     except KeyboardInterrupt:
         terminate_reconn(observer, console_file)
+        return
 
-    # Allow observer thread to run forever and so this process
-    observer.join()
+    terminate_reconn(observer, console_file)
 
 
 def init_reconn(argv):
     global survey_pattern_re_objs
 
     reconn_utils.register_reconn_opts()
+
     reconn_utils.oslo_logger_config_setup(argv)
 
-    reconn_utils.register_reconn_survey_groups()
+    reconn_utils.register_configured_reconn_survey_groups()
 
     survey_pattern_re_objs = reconn_utils.create_re_objs()
 
-    success_action_names = None
-    success_action_names = \
-        reconn_utils.get_configured_survey_success_action_names()
-    reconn_action.register_survey_actions(success_action_names)
+    success_action_names = reconn_utils.register_reconn_survey_action_groups()
+
+    reconn_action.create_survey_actions(success_action_names)
 
 
-def terminate_reconn(observer, console_file):
+def terminate_reconn(observer, file):
     '''Reconn closure activities executed here.
     Called when timeout or end reconn pattern matched.
     Discontinue any more reconn on files.'''
     observer.stop()
     observer.join()
-    console_file.close()
-    reconn_action.deregister_survey_actions()
-    sys.exit(0)
+    file.close()
+    reconn_action.destroy_survey_actions()
 
 
 def begin_reconn():
