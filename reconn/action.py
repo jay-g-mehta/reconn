@@ -2,18 +2,22 @@
 
 from abc import ABCMeta, abstractmethod
 import io
+import datetime
 
+from oslo_config import cfg
 from oslo_log import log as logging
 
 
+CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
-supported_actions = ('LogSurvey', )
+supported_actions = ('log_survey', )
 _action_mapper = {}
 
 
 class SurveyAction(object):
     """Base class for actions"""
     __metaclass__ = ABCMeta
+
     def __init__(self):
         pass
 
@@ -32,11 +36,10 @@ class SurveyAction(object):
 
 class LogSurvey(SurveyAction):
     """Action that logs matched survey patterns"""
-    def __init__(self, log_file):
-        # TODO(Jay): accept log format too.
-        self.log_format = 'Matched pattern: %s in line: %s \n'
+    def __init__(self, log_file, log_format):
+        self.log_format = log_format
         self.f = None
-        self.f = io.open(log_file, 'a')
+        self.f = io.open(log_file, 'a+b')
 
     def destructor(self):
         if self.f is not None:
@@ -46,18 +49,27 @@ class LogSurvey(SurveyAction):
         self.destructor()
 
     def execute(self, pattern, line, *args, **kwargs):
-        self.f.write(self.log_format % (pattern, line))
+
+        s = self.log_format.format(
+            time=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            line=line,
+            matched_pattern=pattern,
+        )
+        self.f.write(s)
+        self.f.write("\n")
+        self.f.flush()
 
 
-def register_survey_actions(action_names):
-    '''For a list of valid input action names, register it'''
+def create_survey_actions(action_names):
+    '''Create action, for given a list of valid input action names'''
     global _action_mapper
 
     for action_name in action_names:
-        if action_name == 'LogSurvey':
-            # TODO(jay): Accept LogSurvey path from config
-            log_survey = LogSurvey('/var/log/reconn/reconn_survey.log')
-            _action_mapper[action_name] = log_survey
+        if action_name == 'log_survey':
+            log_survey_obj = LogSurvey(
+                CONF.log_survey.log_survey_action_log_file,
+                CONF.log_survey.log_survey_action_log_format)
+            _action_mapper[action_name] = log_survey_obj
         else:
             LOG.error("action name %s not found. Supported actions: %s" % (
                 action_name, supported_actions))
@@ -68,7 +80,7 @@ def get_survey_action(action_name):
     return _action_mapper.get(action_name, None)
 
 
-def deregister_survey_actions():
+def destroy_survey_actions():
     for action in _action_mapper.values():
         action.destructor()
     _action_mapper.clear()
