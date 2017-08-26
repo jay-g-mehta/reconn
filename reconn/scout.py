@@ -204,7 +204,7 @@ def terminate_reconn(observer, file):
 def begin_reconn():
     LOG.info("Reconn target file: %s", CONF.reconn.target_file)
     try:
-        console_file = io.open(CONF.reconn.target_file, 'rt', newline='\n')
+        console_file = io.open(CONF.reconn.target_file, 'rb')
     except (IOError, TypeError) as e:
         LOG.error("Failed to open console log file. Error: %s", e)
         LOG.info("Exiting")
