@@ -2,6 +2,7 @@
 
 from abc import ABCMeta, abstractmethod
 import io
+import codecs
 import datetime
 
 from oslo_config import cfg
@@ -37,9 +38,9 @@ class SurveyAction(object):
 class LogSurvey(SurveyAction):
     """Action that logs matched survey patterns"""
     def __init__(self, log_file, log_format):
-        self.log_format = log_format
+        self.log_format = codecs.decode(log_format, 'unicode_escape')
         self.f = None
-        self.f = io.open(log_file, 'a+b')
+        self.f = io.open(log_file, 'ab',)
 
     def destructor(self):
         if self.f is not None:
@@ -49,14 +50,12 @@ class LogSurvey(SurveyAction):
         self.destructor()
 
     def execute(self, pattern, line, *args, **kwargs):
-
         s = self.log_format.format(
             time=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             line=line,
             matched_pattern=pattern,
         )
         self.f.write(s)
-        self.f.write("\n")
         self.f.flush()
 
 

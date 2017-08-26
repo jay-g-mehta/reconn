@@ -106,7 +106,12 @@ def _register_log_survey_action_group_opts():
     log_survey_action_opts = [
         cfg.StrOpt('log_survey_action_log_format',
                    default='{time} {{ {line} : {matched_pattern} }}\n',
-                   help='defaults to %(time)d {%(line)s: %(matched_pattern)s}'),
+                   help='Format to log matched pattern. Supported replacement '
+                        'fields are {time}, {line} and {matched_pattern}. '
+                        'Rest all characters will be sent to log file as is.'
+                        'Logging "{" or "}" requires escape by doubling '
+                        '{{, }}. Defaults to :'
+                        '{time} {{ {line} : {matched_pattern} }}\n'),
         cfg.StrOpt('log_survey_action_log_file',
                    default='/var/log/reconn/reconn_survey.log',
                    help='File to log message for pattern match'),
