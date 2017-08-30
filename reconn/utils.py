@@ -124,13 +124,48 @@ def _register_log_survey_action_group_opts():
                        group=log_survey_action_opt_group)
 
 
+def _register_rmq_survey_action_group_opts():
+    '''Register rmq_survey action config group and opts'''
+    rmq_survey_action_opts = [
+        cfg.StrOpt('username',
+                   default='guest',
+                   help='username to connect to RMQ server'),
+        cfg.StrOpt('password',
+                   default='guest',
+                   help='password for username to connect to RMQ server'),
+        cfg.IPOpt('host',
+                  default='127.0.0.1',
+                  help='IP addr where RMQ server is running'),
+        cfg.PortOpt('port',
+                    default=5672,
+                    help='port on which RMQ server is listening'),
+        cfg.StrOpt('virtual_host',
+                   default='/',
+                   help='RMQ virtual host'),
+        cfg.StrOpt('exchange_name',
+                   default='',
+                   help='exchange name to create or publish message to'),
+        cfg.StrOpt('queue_name',
+                   help='Explicit Queue name where the message gets forwarded to'),
+        cfg.StrOpt('routing_key',
+                   help='Routing key that allows message to be forwarded to Queue from Exchange'),
+    ]
+
+    rmq_survey_action_opt_group = cfg.OptGroup(name='rmq_survey',
+                                               title='RECONN RMQSurvey action group')
+    CONF.register_group(rmq_survey_action_opt_group)
+    CONF.register_opts(rmq_survey_action_opts,
+                       group=rmq_survey_action_opt_group)
+
+
 def register_reconn_survey_action_groups():
     '''Register survey action group and its opts'''
     success_actions = _get_all_configured_success_actions()
     for success_action in success_actions:
         if success_action == 'log_survey':
             _register_log_survey_action_group_opts()
-
+        elif success_action == 'rmq_survey':
+            _register_rmq_survey_action_group_opts()
     return success_actions
 
 
