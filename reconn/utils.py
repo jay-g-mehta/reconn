@@ -148,7 +148,25 @@ def _register_rmq_survey_action_group_opts():
         cfg.StrOpt('queue_name',
                    help='Explicit Queue name where the message gets forwarded to'),
         cfg.StrOpt('routing_key',
-                   help='Routing key that allows message to be forwarded to Queue from Exchange'),
+                   help='Routing key that allows message to be '
+                        'forwarded to Queue from Exchange'),
+        cfg.StrOpt('message_format',
+                   default="{{'line':'{line}', 'matched_pattern':'{matched_pattern}', "
+                           "'timestamp':'{timestamp}' }}",
+                   help="Format of message to send to RMQ on matched pattern. "
+                        "Variables within {} will be substituted with its value. "
+                        "Fields {timestamp}, {line} and {matched_pattern} are computed. "
+                        "Rest all characters will be sent as it is in message. "
+                        "Logging { or } requires escape by doubling "
+                        "{{, }}. Defaults to :"
+                        "{{'line':'{line}', 'matched_pattern':'{matched_pattern}', "
+                        "'timestamp':'{timestamp}' }}"),
+        cfg.DictOpt('user_data',
+                    default={},
+                    help="User data is a set of key:value pairs, where the"
+                         "key is looked up in message_format string within {}"
+                         "and it is substituted with the value. This helps is forming"
+                         "custom message to be sent to RMQ"),
     ]
 
     rmq_survey_action_opt_group = cfg.OptGroup(name='rmq_survey',

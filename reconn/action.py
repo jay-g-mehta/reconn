@@ -110,8 +110,18 @@ class RMQSurvey(object):
     def _construct_msg(self, pattern, line):
         '''Construct msg to be publish in RMQ.
         Msg will be a string formed from json dumped msg obj'''
-        msg = {'line': line, 'pattern': pattern,
+        msg_format = CONF.rmq_survey.message_format
+        msg = {'line': line, 'matched_pattern': pattern,
                'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")}
+        msg.update(CONF.rmq_survey.user_data)
+        try:
+            msg = msg_format.format(**msg)
+        except KeyError as e:
+            LOG.exception("%s", e)
+            LOG.exception("message_format or user_data incorrect. "
+                          "Key not found while composing message for RMQ. "
+                          "Verify configuration")
+
         msg = json.dumps(msg, ensure_ascii=False)
         return msg
 
