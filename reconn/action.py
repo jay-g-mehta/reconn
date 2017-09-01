@@ -60,7 +60,7 @@ class LogSurvey(SurveyAction):
 
     def execute(self, pattern, line, *args, **kwargs):
         s = self.log_format.format(
-            time=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'),
             line=line,
             matched_pattern=pattern,
         )
@@ -110,15 +110,22 @@ class RMQSurvey(object):
     def _construct_msg(self, pattern, line):
         '''Construct msg to be publish in RMQ.
         Msg will be a string formed from json dumped msg obj'''
-        msg_format = CONF.rmq_survey.message_format
-        msg = {'line': line, 'matched_pattern': pattern,
-               'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")}
-        msg.update(CONF.rmq_survey.user_data)
+        msg_format = CONF.rmq_survey.rmq_message_format
+        msg = {}
+        msg.update(CONF.reconn.msg_user_data)
+        msg.update(CONF.rmq_survey.rmq_msg_user_data)
+        msg.update(
+            {'line': line,
+             'matched_pattern': pattern,
+             'timestamp':
+                 datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+             })
+
         try:
             msg = msg_format.format(**msg)
         except KeyError as e:
             LOG.exception("%s", e)
-            LOG.exception("message_format or user_data incorrect. "
+            LOG.exception("rmq_message_format or rmq_msg_user_data incorrect. "
                           "Key not found while composing message for RMQ. "
                           "Verify configuration")
 

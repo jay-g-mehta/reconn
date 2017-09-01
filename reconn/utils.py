@@ -22,6 +22,18 @@ def oslo_logger_config_setup(argv):
     logging.setup(CONF, "reconn")
 
 
+_default_action_message_format = "{{'line':'{line}', 'matched_pattern':'{matched_pattern}', " \
+                                 "'timestamp':'{timestamp}' }}"
+_default_message_format_help = "Default format of message for all survey action group. " \
+                               "Message will be composed of this format on matched pattern. " \
+                               "Variables within {} will be substituted with its value. These " \
+                               "variables should be part of msg_user_data option. " \
+                               "Fields {timestamp}, {line} and {matched_pattern} are computed. " \
+                               "Rest all characters will be sent as it is in message. " \
+                               "Logging { or } requires escape by doubling " \
+                               "{{, }}. Defaults to :" + _default_action_message_format
+
+
 def register_reconn_opts():
     '''Register reconn opts'''
     reconn_opts = [
@@ -44,6 +56,18 @@ def register_reconn_opts():
                         'regular expression that will be looked '
                         'out in file. On encountering end reconn '
                         'pattern, reconn will be stopped'),
+
+        cfg.StrOpt('survey_action_message_format',
+                   default=_default_action_message_format,
+                   help=_default_message_format_help),
+
+        cfg.DictOpt('msg_user_data',
+                    default={},
+                    help="User data is a set of key:value pairs, where the "
+                         "key is looked up in survey_action_message_format "
+                         "string within {} and it is substituted with the "
+                         "value. This helps in forming "
+                         "custom message to be sent to RMQ"),
     ]
 
     reconn_opt_group = cfg.OptGroup(name='reconn',
@@ -78,7 +102,7 @@ def _register_survey_opts(survey_pattern_group):
                    default=None,
                    help=''),
         cfg.StrOpt('success',
-                   default='log_survey',
+                   default='rmq_survey',
                    choices=reconn_action.supported_actions,
                    help='Action when pattern match'),
         cfg.StrOpt('failure',
@@ -105,13 +129,12 @@ def _register_log_survey_action_group_opts():
     '''Register log_survey action config group and opts'''
     log_survey_action_opts = [
         cfg.StrOpt('log_survey_action_log_format',
-                   default='{time} {{ {line} : {matched_pattern} }}\n',
+                   default=_default_action_message_format,
                    help='Format to log matched pattern. Supported replacement '
-                        'fields are {time}, {line} and {matched_pattern}. '
+                        'fields are {timestamp}, {line} and {matched_pattern}. '
                         'Rest all characters will be sent to log file as is.'
                         'Logging "{" or "}" requires escape by doubling '
-                        '{{, }}. Defaults to :'
-                        '{time} {{ {line} : {matched_pattern} }}\n'),
+                        '{{, }}. Defaults to :' + _default_action_message_format),
         cfg.StrOpt('log_survey_action_log_file',
                    default='/var/log/reconn/reconn_survey.log',
                    help='File to log message for pattern match'),
@@ -150,23 +173,23 @@ def _register_rmq_survey_action_group_opts():
         cfg.StrOpt('routing_key',
                    help='Routing key that allows message to be '
                         'forwarded to Queue from Exchange'),
-        cfg.StrOpt('message_format',
-                   default="{{'line':'{line}', 'matched_pattern':'{matched_pattern}', "
-                           "'timestamp':'{timestamp}' }}",
+        cfg.StrOpt('rmq_message_format',
+                   default=_default_action_message_format,
                    help="Format of message to send to RMQ on matched pattern. "
                         "Variables within {} will be substituted with its value. "
                         "Fields {timestamp}, {line} and {matched_pattern} are computed. "
                         "Rest all characters will be sent as it is in message. "
                         "Logging { or } requires escape by doubling "
-                        "{{, }}. Defaults to :"
-                        "{{'line':'{line}', 'matched_pattern':'{matched_pattern}', "
-                        "'timestamp':'{timestamp}' }}"),
-        cfg.DictOpt('user_data',
+                        "{{, }}. Defaults to :" + _default_action_message_format),
+        cfg.DictOpt('rmq_msg_user_data',
                     default={},
-                    help="User data is a set of key:value pairs, where the"
-                         "key is looked up in message_format string within {}"
-                         "and it is substituted with the value. This helps is forming"
-                         "custom message to be sent to RMQ"),
+                    help="RMQ msg user data is a set of key:value pairs, where "
+                         "the key is looked up in rmq_message_format string "
+                         "within {} and it is substituted with the value. "
+                         "This helps is forming custom message to be sent to "
+                         "RMQ. These set of key:value pairs overrides "
+                         "key:value pairs from reconn config group's "
+                         "msg_user_data"),
     ]
 
     rmq_survey_action_opt_group = cfg.OptGroup(name='rmq_survey',
