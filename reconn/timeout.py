@@ -7,7 +7,10 @@ LOG = logging.getLogger(__name__)
 
 class ReconnTimeout(object):
     '''Only main thread can set SIGALRM alarm for timeout.
-    Any thread can monitor timed out, to terminate'''
+    Any thread can monitor timed out, to terminate.
+    Application multi-processing, can create a new daemonic
+    type process to call reconn with timeout.
+    '''
     reconn_timedout = False
 
     @staticmethod

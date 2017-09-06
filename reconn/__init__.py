@@ -1,4 +1,11 @@
-from reconn.scout import init_reconn, begin_reconn
+from reconn.scout import register_reconn, init_reconn, begin_reconn
+
+
+__all__ = ['start_reconn', 'setup_reconn']
+
+
+def setup_reconn():
+    register_reconn()
 
 
 def start_reconn(target_file,
@@ -17,11 +24,8 @@ def start_reconn(target_file,
     if survey_action_message_format is not None:
         args_dict['--survey_action_message_format'] = survey_action_message_format
     if user_data is not None:
-        args_dict['--user_data'] = user_data
+        args_dict['--msg_user_data'] = user_data
 
     sys_argv = ['{0}={1}'.format(k, v) for k, v in args_dict.items()]
-
     init_reconn(sys_argv)
     begin_reconn()
-
-__all__ = ['start_reconn']

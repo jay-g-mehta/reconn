@@ -8,15 +8,15 @@ import watchdog
 import watchdog.events
 import watchdog.observers
 
-from oslo_config import cfg
 from oslo_log import log as logging
 
+from reconn import conf as reconn_conf
 from reconn import utils as reconn_utils
 from reconn import timeout as reconn_timeout
 from reconn import action as reconn_action
 
 
-CONF = cfg.CONF
+CONF = reconn_conf.CONF
 LOG = logging.getLogger(__name__)
 
 file_lock = threading.Lock()
@@ -175,10 +175,14 @@ def reconn_forever(console_file, observer):
     terminate_reconn(observer, console_file)
 
 
+def register_reconn():
+    reconn_utils.register_reconn_opts()
+
+
 def init_reconn(argv):
     global survey_pattern_re_objs
 
-    reconn_utils.register_reconn_opts()
+    reconn_utils.suppress_imported_modules_logging()
 
     reconn_utils.oslo_logger_config_setup(argv)
 
@@ -202,9 +206,9 @@ def terminate_reconn(observer, file):
 
 
 def begin_reconn():
-    LOG.info("Reconn target file: %s", CONF.reconn.target_file)
+    LOG.info("Reconn target file: %s", CONF.target_file)
     try:
-        console_file = io.open(CONF.reconn.target_file, 'rb')
+        console_file = io.open(CONF.target_file, 'rb')
     except (IOError, TypeError) as e:
         LOG.error("Failed to open console log file. Error: %s", e)
         LOG.info("Exiting")
@@ -214,16 +218,17 @@ def begin_reconn():
         LOG.info("Exiting")
         sys.exit(1)
 
-    observer = register_notification(CONF.reconn.target_file, console_file)
+    observer = register_notification(CONF.target_file, console_file)
 
     # Set program terminate time out
-    reconn_timeout.ReconnTimeout.set_timeout(CONF.reconn.timeout * 60)
+    reconn_timeout.ReconnTimeout.set_timeout(CONF.timeout * 60)
 
     reconn_forever(console_file, observer)
 
 
 def main():
     '''Invoked when running reconn directly'''
+    register_reconn()
     init_reconn(sys.argv[1:])
     begin_reconn()
 
