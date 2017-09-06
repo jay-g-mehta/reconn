@@ -4,7 +4,6 @@ from abc import ABCMeta, abstractmethod
 import io
 import codecs
 import datetime
-import time
 import pika
 import json
 import six
@@ -14,11 +13,12 @@ if six.PY2:
 else:
     import queue as native_queue
 
-from oslo_config import cfg
 from oslo_log import log as logging
 
+from reconn import conf as reconn_conf
 
-CONF = cfg.CONF
+
+CONF = reconn_conf.CONF
 LOG = logging.getLogger(__name__)
 supported_actions = ('log_survey', 'rmq_survey')
 _action_mapper = {}
@@ -112,7 +112,7 @@ class RMQSurvey(object):
         Msg will be a string formed from json dumped msg obj'''
         msg_format = CONF.rmq_survey.rmq_message_format
         msg = {}
-        msg.update(CONF.reconn.msg_user_data)
+        msg.update(CONF.msg_user_data)
         msg.update(CONF.rmq_survey.rmq_msg_user_data)
         msg.update(
             {'line': line,

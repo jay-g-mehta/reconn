@@ -1,41 +1,55 @@
 import re
+import logging as py_logging
 
 from oslo_config import cfg
 from oslo_log import log as logging
 
 from reconn import version
 from reconn import action as reconn_action
+from reconn import conf as reconn_conf
 
 
-CONF = cfg.CONF
+CONF = reconn_conf.CONF
 LOG = logging.getLogger(__name__)
+
+_default_action_message_format = "{{'line':'{line}', 'matched_pattern':'{matched_pattern}', " \
+                                 "'timestamp':'{timestamp}' }}"
+
+
+def suppress_imported_modules_logging():
+    py_logging.getLogger('pika').setLevel(py_logging.INFO)
+    py_logging.getLogger('pika').propagate = False
+
+    py_logging.getLogger('watchdog').setLevel(py_logging.INFO)
+    py_logging.getLogger('watchdog').propagate = False
 
 
 def oslo_logger_config_setup(argv):
-    '''Register oslo logger opts.
+    '''
     Initialize oslo config CONF
     '''
-
-    logging.register_options(CONF)
     CONF(argv, project='reconn',
          version=version.version_string())
     logging.setup(CONF, "reconn")
 
 
-_default_action_message_format = "{{'line':'{line}', 'matched_pattern':'{matched_pattern}', " \
-                                 "'timestamp':'{timestamp}' }}"
-_default_message_format_help = "Default format of message for all survey action group. " \
-                               "Message will be composed of this format on matched pattern. " \
-                               "Variables within {} will be substituted with its value. These " \
-                               "variables should be part of msg_user_data option. " \
-                               "Fields {timestamp}, {line} and {matched_pattern} are computed. " \
-                               "Rest all characters will be sent as it is in message. " \
-                               "Logging { or } requires escape by doubling " \
-                               "{{, }}. Defaults to :" + _default_action_message_format
-
-
 def register_reconn_opts():
-    '''Register reconn opts'''
+    '''Register oslo logger opts & cli opts
+     and reconn default opts & cli opts
+    '''
+
+    global _default_action_message_format
+    _default_message_format_help = "Default format of message for all survey action group. " \
+                                   "Message will be composed of this format on matched pattern. " \
+                                   "Variables within {} will be substituted with its value. These " \
+                                   "variables should be part of msg_user_data option. " \
+                                   "Fields {timestamp}, {line} and {matched_pattern} are computed. " \
+                                   "Rest all characters will be sent as it is in message. " \
+                                   "Logging { or } requires escape by doubling " \
+                                   "{{, }}. Defaults to :" + _default_action_message_format
+
+    logging.register_options(CONF)
+
     reconn_opts = [
         cfg.StrOpt('target_file',
                    default=None,
@@ -49,14 +63,6 @@ def register_reconn_opts():
                    help='terminate reconn after timeout minutes. '
                         'Defaults to 20 minutes'),
 
-        cfg.StrOpt('end_reconn',
-                   default=None,
-                   help='A [CONFIG] group name that defines a '
-                        'parameter called "pattern" which is an '
-                        'regular expression that will be looked '
-                        'out in file. On encountering end reconn '
-                        'pattern, reconn will be stopped'),
-
         cfg.StrOpt('survey_action_message_format',
                    default=_default_action_message_format,
                    help=_default_message_format_help),
@@ -68,31 +74,23 @@ def register_reconn_opts():
                          "string within {} and it is substituted with the "
                          "value. This helps in forming "
                          "custom message to be sent to RMQ"),
-    ]
 
-    reconn_opt_group = cfg.OptGroup(name='reconn',
-                                    title='RECONN opts group')
+        cfg.StrOpt('end_reconn',
+                   default=None,
+                   help='A [CONFIG] group name that defines a '
+                        'parameter called "pattern" which is an '
+                        'regular expression that will be looked '
+                        'out in file. On encountering end reconn '
+                        'pattern, reconn will be stopped'),
 
-    CONF.register_group(reconn_opt_group)
-    CONF.register_opts(reconn_opts, group=reconn_opt_group)
-
-    _register_reconn_opt_survey_group(reconn_opt_group)
-
-    CONF.register_cli_opts(reconn_opts)
-
-
-def _register_reconn_opt_survey_group(reconn_opt_group):
-    """Register reconn option 'survey_group'"""
-    reconn_survey_opts = [
         cfg.StrOpt('survey_group',
                    default=None,
                    help='Survey pattern groups name'),
     ]
 
-    reconn_opt_group = cfg.OptGroup(name='reconn',
-                                    title='RECONN opts group')
+    CONF.register_opts(reconn_opts)
 
-    CONF.register_opts(reconn_survey_opts, group=reconn_opt_group)
+    CONF.register_cli_opts(reconn_opts[:-2])
 
 
 def _register_survey_opts(survey_pattern_group):
@@ -212,7 +210,7 @@ def register_reconn_survey_action_groups():
 
 def _get_reconn_survey_groups():
     '''Get list of names of configured survey groups'''
-    group_list = CONF.reconn.survey_group.split(",")
+    group_list = CONF.survey_group.split(",")
     for i in range(len(group_list)):
         group_list[i] = group_list[i].strip(" ")
     return group_list
@@ -258,7 +256,7 @@ def search_patterns(re_objs, line):
 
 def search_end_reconn_pattern(line):
     '''Search and return end reconn pattern in line or None'''
-    reconn_end_group_name = CONF.reconn.end_reconn
+    reconn_end_group_name = CONF.end_reconn
     end_reconn_pattern = CONF.get(reconn_end_group_name).pattern
     if re.search(end_reconn_pattern, line) is None:
         return None
@@ -270,7 +268,7 @@ def search_end_reconn_pattern(line):
 
 def is_pattern_to_end_reconn(pattern):
     '''Match pattern with end reconn group's pattern'''
-    reconn_end_group_name = CONF.reconn.end_reconn
+    reconn_end_group_name = CONF.end_reconn
     end_reconn_pattern = CONF.get(reconn_end_group_name).pattern
     if end_reconn_pattern == pattern:
         return True
