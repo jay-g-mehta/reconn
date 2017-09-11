@@ -12,8 +12,8 @@ from reconn import conf as reconn_conf
 CONF = reconn_conf.CONF
 LOG = logging.getLogger(__name__)
 
-_default_action_message_format = "{{'line':'{line}', 'matched_pattern':'{matched_pattern}', " \
-                                 "'timestamp':'{timestamp}' }}"
+_default_action_message_format = '{{"line":"{line}", "matched_pattern":"{matched_pattern}", ' \
+                                 '"timestamp":"{timestamp}" }}'
 
 
 def suppress_imported_modules_logging():

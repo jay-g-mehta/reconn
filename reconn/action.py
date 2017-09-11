@@ -129,7 +129,13 @@ class RMQSurvey(object):
                           "Key not found while composing message for RMQ. "
                           "Verify configuration")
 
-        msg = json.dumps(msg, ensure_ascii=False)
+        # TODO(jay): Validate json schema in the message.
+        # Like property names in the message should be double quoted
+        # and not single quote.
+
+        # Handling control characters like \r \n.
+        tmp_json_obj = json.loads(msg, strict=False)
+        msg = json.dumps(tmp_json_obj, ensure_ascii=False)
         return msg
 
     def _publish_msg_to_rmq(self, msg):
