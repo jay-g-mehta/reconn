@@ -76,12 +76,12 @@ def register_notification(file_path, file_obj):
     return observer
 
 
-def act_on_pattern(matched_pattern, line):
+def act_on_pattern(survey_grp_name, matched_pattern, line):
     if matched_pattern is None:
         return
     action_name = reconn_utils.get_survey_success_action_name(matched_pattern)
     survey_action = reconn_action.get_survey_action(action_name)
-    survey_action.execute(matched_pattern, line)
+    survey_action.execute(survey_grp_name, matched_pattern, line)
 
 
 def reconn_file(f):
@@ -110,9 +110,9 @@ def reconn_file(f):
             last_line = line
         else:
             # readline returned due to \n
-            matched_pattern = reconn_utils.search_patterns(survey_pattern_re_objs,
-                                                           line)
-            act_on_pattern(matched_pattern, line)
+            survey_grp_name, matched_pattern = reconn_utils.search_patterns(
+                survey_pattern_re_objs, line)
+            act_on_pattern(survey_grp_name,matched_pattern, line)
             if reconn_utils.is_pattern_to_end_reconn(matched_pattern):
                 # End Reconn pattern matched
                 end_reconn = True
@@ -127,9 +127,9 @@ def reconn_file(f):
             eof is True and
             last_line != ''):
 
-        matched_pattern = reconn_utils.search_patterns(survey_pattern_re_objs,
-                                                       last_line)
-        act_on_pattern(matched_pattern, last_line)
+        survey_grp_name, matched_pattern = reconn_utils.search_patterns(
+            survey_pattern_re_objs, last_line)
+        act_on_pattern(survey_grp_name, matched_pattern, last_line)
         if matched_pattern is not None:
             # Some pattern matched. No longer to carry last_line's content.
             last_line = ''

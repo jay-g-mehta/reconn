@@ -12,7 +12,8 @@ from reconn import conf as reconn_conf
 CONF = reconn_conf.CONF
 LOG = logging.getLogger(__name__)
 
-_default_action_message_format = '{{"line":"{line}", "matched_pattern":"{matched_pattern}", ' \
+_default_action_message_format = '{{"name": "{name}", "line":"{line}", ' \
+                                 '"matched_pattern":"{matched_pattern}", ' \
                                  '"timestamp":"{timestamp}" }}'
 
 
@@ -39,11 +40,16 @@ def register_reconn_opts():
     '''
 
     global _default_action_message_format
-    _default_message_format_help = "Default format of message for all survey action group. " \
-                                   "Message will be composed of this format on matched pattern. " \
-                                   "Variables within {} will be substituted with its value. These " \
-                                   "variables should be part of msg_user_data option. " \
-                                   "Fields {timestamp}, {line} and {matched_pattern} are computed. " \
+    _default_message_format_help = "Default format of message for all survey " \
+                                   "action group. Message will be composed " \
+                                   "of this format on matched pattern. " \
+                                   "Variables within {} will be substituted " \
+                                   "with its value. These variables should " \
+                                   "be part of msg_user_data option. Fields " \
+                                   "{timestamp}, {line} and {matched_pattern} " \
+                                   "are computed. Field {name} is substituted " \
+                                   "by the value defined for parameter name " \
+                                   "of matching survey config group. " \
                                    "Rest all characters will be sent as it is in message. " \
                                    "Logging { or } requires escape by doubling " \
                                    "{{, }}. Defaults to :" + _default_action_message_format
@@ -98,11 +104,15 @@ def _register_survey_opts(survey_pattern_group):
     reconn_survey_pattern_opts = [
         cfg.StrOpt('pattern',
                    default=None,
-                   help=''),
+                   help='Pattern to match'),
+        cfg.StrOpt('name',
+                   default=survey_pattern_group,
+                   help='Alternate name to survey config group. Defaults '
+                        'to config group name.'),
         cfg.StrOpt('success',
-                   default='rmq_survey',
+                   default='log_survey',
                    choices=reconn_action.supported_actions,
-                   help='Action when pattern match'),
+                   help='Action when pattern matches'),
         cfg.StrOpt('failure',
                    default=None,
                    help=''),
@@ -127,12 +137,13 @@ def _register_log_survey_action_group_opts():
     '''Register log_survey action config group and opts'''
     log_survey_action_opts = [
         cfg.StrOpt('log_survey_action_log_format',
-                   default=_default_action_message_format,
+                   default=CONF.survey_action_message_format,
                    help='Format to log matched pattern. Supported replacement '
-                        'fields are {timestamp}, {line} and {matched_pattern}. '
+                        'fields are {name}, {timestamp}, {line} '
+                        'and {matched_pattern}. '
                         'Rest all characters will be sent to log file as is.'
                         'Logging "{" or "}" requires escape by doubling '
-                        '{{, }}. Defaults to :' + _default_action_message_format),
+                        '{{, }}. Defaults to :' + CONF.survey_action_message_format),
         cfg.StrOpt('log_survey_action_log_file',
                    default='/var/log/reconn/reconn_survey.log',
                    help='File to log message for pattern match'),
@@ -172,13 +183,14 @@ def _register_rmq_survey_action_group_opts():
                    help='Routing key that allows message to be '
                         'forwarded to Queue from Exchange'),
         cfg.StrOpt('rmq_message_format',
-                   default=_default_action_message_format,
+                   default=CONF.survey_action_message_format,
                    help="Format of message to send to RMQ on matched pattern. "
                         "Variables within {} will be substituted with its value. "
-                        "Fields {timestamp}, {line} and {matched_pattern} are computed. "
+                        "Fields {name}, {timestamp}, {line} and "
+                        "{matched_pattern} are computed. "
                         "Rest all characters will be sent as it is in message. "
                         "Logging { or } requires escape by doubling "
-                        "{{, }}. Defaults to :" + _default_action_message_format),
+                        "{{, }}. Defaults to :" + CONF.survey_action_message_format),
         cfg.DictOpt('rmq_msg_user_data',
                     default={},
                     help="RMQ msg user data is a set of key:value pairs, where "
@@ -234,14 +246,16 @@ def create_re_objs():
     '''Create python re pattern obj for each survey pattern'''
     re_objs = []
     for survey_group_name in _get_reconn_survey_groups():
-        re_objs.append(re.compile(CONF.get(survey_group_name).pattern))
+        re_objs.append((CONF.get(survey_group_name).name,
+                       re.compile(CONF.get(survey_group_name).pattern)))
 
     return re_objs
 
 
 def search_patterns(re_objs, line):
-    '''Returns first matched pattern in line or None'''
-    for re_obj in re_objs:
+    '''Returns first matched pattern in line and its
+     survey pattern group name. On Failure, returns (None,None)'''
+    for survey_grp_name, re_obj in re_objs:
         match_obj = re_obj.search(line)
         if match_obj is None:
             # pattern not in line
@@ -250,8 +264,8 @@ def search_patterns(re_objs, line):
             # pattern in line
             s = "Matched %s in line: %s" % (re_obj.pattern, line)
             LOG.debug(s)
-            return re_obj.pattern
-    return None
+            return survey_grp_name, re_obj.pattern
+    return None, None
 
 
 def search_end_reconn_pattern(line):
