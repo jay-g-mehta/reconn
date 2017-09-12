@@ -58,11 +58,12 @@ class LogSurvey(SurveyAction):
     def __del__(self):
         self.destructor()
 
-    def execute(self, pattern, line, *args, **kwargs):
+    def execute(self, survey_grp_name, pattern, line, *args, **kwargs):
         s = self.log_format.format(
             timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'),
             line=line,
             matched_pattern=pattern,
+            name=survey_grp_name
         )
         self.f.write(s)
         self.f.flush()
@@ -107,7 +108,7 @@ class RMQSurvey(object):
     def __del__(self):
         self.destructor()
 
-    def _construct_msg(self, pattern, line):
+    def _construct_msg(self, survey_grp_name, pattern, line):
         '''Construct msg to be publish in RMQ.
         Msg will be a string formed from json dumped msg obj'''
         msg_format = CONF.rmq_survey.rmq_message_format
@@ -116,6 +117,7 @@ class RMQSurvey(object):
         msg.update(CONF.rmq_survey.rmq_msg_user_data)
         msg.update(
             {'line': line,
+             'name': survey_grp_name,
              'matched_pattern': pattern,
              'timestamp':
                  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
@@ -171,14 +173,14 @@ class RMQSurvey(object):
         except pika.exceptions.ConnectionClosed as connection_closed_excp:
             LOG.exception("%s" % connection_closed_excp)
 
-    def execute(self, pattern, line, *args, **kwargs):
+    def execute(self, survey_grp_name, pattern, line, *args, **kwargs):
         """Publish message"""
         if self._channel is None or not self._channel.is_open:
             LOG.error("Channel is None or not open. Not publishing message"
                       "pattern: %s, line: %s" % (pattern, line))
             # TODO(jay): try to re-estb connection and publish
 
-        msg = self._construct_msg(pattern, line)
+        msg = self._construct_msg(survey_grp_name, pattern, line)
         if self._flag_rmq_blocked is True:
             # Note(jay): Race condition here.
             # A call back to _connection_unblocked_callback
