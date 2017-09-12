@@ -47,6 +47,9 @@ class SurveyAction(object):
 class LogSurvey(SurveyAction):
     """Action that logs matched survey patterns"""
     def __init__(self, log_file, log_format):
+        # Note(jay): We want control characters have special meaning
+        # while we log and not get written as string.
+        # The below decode will transform \\r to \r and so on.
         self.log_format = codecs.decode(log_format, 'unicode_escape')
         self.f = None
         self.f = io.open(log_file, 'ab',)
@@ -59,12 +62,21 @@ class LogSurvey(SurveyAction):
         self.destructor()
 
     def execute(self, survey_grp_name, pattern, line, *args, **kwargs):
-        s = self.log_format.format(
-            timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'),
-            line=line,
-            matched_pattern=pattern,
-            name=survey_grp_name
-        )
+        # Note(jay): Handle control characters so they are
+        #  written out to log as characters and not their
+        # interpretation.
+        line = codecs.encode(line, 'unicode_escape')
+        s = self.log_format
+        try:
+            s = s.format(
+                timestamp=datetime.datetime.now().strftime(
+                    '%Y-%m-%d %H:%M:%S.%f'),
+                line=line,
+                matched_pattern=pattern,
+                name=survey_grp_name)
+        except KeyError:
+            pass
+
         self.f.write(s)
         self.f.flush()
 
