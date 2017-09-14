@@ -128,7 +128,13 @@ def _register_survey_opts(survey_pattern_group):
 
 def register_configured_reconn_survey_groups():
     '''Dynamically register all configured survey config group and its opts'''
-    for survey_pattern_group in _get_reconn_survey_groups():
+    survey_pattern_groups = _get_reconn_survey_groups()
+    if survey_pattern_groups == []:
+        LOG.error("survey_group not configured. Configure survey_group "
+                  "to perform reconn on target file.")
+        raise ValueError
+
+    for survey_pattern_group in survey_pattern_groups:
         _register_survey_opts(survey_pattern_group)
         LOG.debug("Registered pattern: %s", survey_pattern_group)
 
@@ -221,7 +227,10 @@ def register_reconn_survey_action_groups():
 
 
 def _get_reconn_survey_groups():
-    '''Get list of names of configured survey groups'''
+    '''Get list of names of configured survey groups or
+    empty list'''
+    if CONF.survey_group is None:
+        return []
     group_list = CONF.survey_group.split(",")
     for i in range(len(group_list)):
         group_list[i] = group_list[i].strip(" ")
@@ -270,6 +279,8 @@ def search_patterns(re_objs, line):
 
 def search_end_reconn_pattern(line):
     '''Search and return end reconn pattern in line or None'''
+    if CONF.end_reconn is None:
+        return False
     reconn_end_group_name = CONF.end_reconn
     end_reconn_pattern = CONF.get(reconn_end_group_name).pattern
     if re.search(end_reconn_pattern, line) is None:
@@ -281,7 +292,10 @@ def search_end_reconn_pattern(line):
 
 
 def is_pattern_to_end_reconn(pattern):
-    '''Match pattern with end reconn group's pattern'''
+    '''Returns True if pattern matches with end reconn group's pattern.
+    Returns False otherwise or if end reconn config group is not defined'''
+    if CONF.end_reconn is None:
+        return False
     reconn_end_group_name = CONF.end_reconn
     end_reconn_pattern = CONF.get(reconn_end_group_name).pattern
     if end_reconn_pattern == pattern:
