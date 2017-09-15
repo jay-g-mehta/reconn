@@ -51,8 +51,10 @@ class LogSurvey(SurveyAction):
         # while we log and not get written as string.
         # The below decode will transform \\r to \r and so on.
         self.log_format = codecs.decode(log_format, 'unicode_escape')
+        # Init with None help avoid exception in destructor when
+        # exception raised during io.open()
         self.f = None
-        self.f = io.open(log_file, 'ab',)
+        self.f = io.open(log_file, 'ab')
 
     def destructor(self):
         if self.f is not None:
