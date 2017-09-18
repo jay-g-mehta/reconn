@@ -58,6 +58,7 @@ def register_reconn_opts():
 
     reconn_opts = [
         cfg.StrOpt('target_file',
+                   required=True,
                    default=None,
                    help='Absolute file path of console.log '
                         'of a VM instance, RECONN is supposed '
@@ -90,6 +91,7 @@ def register_reconn_opts():
                         'pattern, reconn will be stopped'),
 
         cfg.StrOpt('survey_group',
+                   required=True,
                    default=None,
                    help='Survey pattern groups name'),
     ]
@@ -104,6 +106,7 @@ def _register_survey_opts(survey_pattern_group):
     reconn_survey_pattern_opts = [
         cfg.StrOpt('pattern',
                    default=None,
+                   required=True,
                    help='Pattern to match'),
         cfg.StrOpt('name',
                    default=survey_pattern_group,
@@ -184,8 +187,10 @@ def _register_rmq_survey_action_group_opts():
                    default='',
                    help='exchange name to create or publish message to'),
         cfg.StrOpt('queue_name',
+                   required=True,
                    help='Explicit Queue name where the message gets forwarded to'),
         cfg.StrOpt('routing_key',
+                   required=True,
                    help='Routing key that allows message to be '
                         'forwarded to Queue from Exchange'),
         cfg.StrOpt('rmq_message_format',
