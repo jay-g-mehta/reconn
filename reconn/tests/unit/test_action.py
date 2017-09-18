@@ -1,5 +1,7 @@
 import mock
 import ddt
+import copy
+import pika
 
 from reconn import test
 from reconn import action as reconn_action
@@ -68,3 +70,128 @@ class LogSurveyActionTestCase(test.TestCase):
         log_survey_obj.execute(survey_grp_name, pattern, line)
 
         mock_BufferedWriter.write.assert_called_once()
+
+
+@ddt.ddt
+class RMQSurveyActionTestCase(test.TestCase):
+
+    def setUp(self):
+        super(RMQSurveyActionTestCase, self).setUp()
+
+    def tearDown(self):
+        super(RMQSurveyActionTestCase, self).tearDown()
+
+    @mock.patch('pika.BlockingConnection')
+    def test_rmq_survey_init(self,
+                             mock_pika_BlockingConnection):
+        rmq_params = dict(
+            username='guest',
+            password='guest',
+            host='10.22.104.223',
+            port=5672,
+            virtual_host='/',
+            exchange_name='test_exchange',
+            queue_name='test_queue',
+            routing_key='test',
+            rmq_message_format='{{"line":"{line}", "matched_pattern":"{matched_pattern}",'
+                               ' "timestamp":"{timestamp}", "uuid":"{uuid}",'
+                               ' "request_id":"{request_id}" }}',
+            rmq_msg_user_data='uuid:6e64ff56-0611-43c5-badc-8a106209e088, '
+                              'request_id: req-57ecbc1d-c64a-4421-8518-fe0ec6feb86d'
+        )
+
+        mock_connection = mock.Mock(name='mock_connection')
+        mock_pika_BlockingConnection.return_value = mock_connection
+
+        mock_channel = mock.Mock(name='mock_channel')
+        mock_connection.channel.return_value = mock_channel
+
+        rmq_survey_obj = reconn_action.RMQSurvey(rmq_params)
+
+        mock_connection.add_on_connection_blocked_callback.assert_called_once()
+        mock_connection.add_on_connection_unblocked_callback.assert_called_once()
+        mock_connection.channel.assert_called_once_with()
+
+        mock_channel.add_on_return_callback.assert_called_once()
+
+        mock_channel.exchange_declare.assert_called_once_with(rmq_params['exchange_name'],
+                                                              'topic')
+        mock_channel.queue_declare.assert_called_once_with(rmq_params['queue_name'])
+        mock_channel.queue_bind.assert_called_once_with(rmq_params['queue_name'],
+                                                        rmq_params['exchange_name'],
+                                                        rmq_params['routing_key'])
+
+        mock_channel.confirm_delivery.assert_called_once_with()
+
+    def test_rmq_survey_init_conn_closed(self):
+        host_with_no_rmq = '250.0.0.1'
+        rmq_params = dict(
+            username='valid_user',
+            password='valid_pwd',
+            host=host_with_no_rmq,
+            port=5672,
+            virtual_host='/',
+        )
+        self.assertRaises(pika.exceptions.ConnectionClosed,
+                          reconn_action.RMQSurvey,
+                          rmq_params)
+
+    def test_rmq_survey_init_auth_error(self):
+        # Note(jay): This test may fail if host does not
+        # have RMQ service. Keeping this test to
+        # remember what exception will be thrown when
+        # invalid username/pwd
+        rmq_params = dict(
+            username='invalid_user',
+            password='invalid_pwd',
+            host='10.22.104.223',
+            port=5672,
+            virtual_host='/',
+        )
+        self.assertRaises(pika.exceptions.ProbableAuthenticationError,
+                          reconn_action.RMQSurvey,
+                          rmq_params)
+
+
+class SurveyActionTestCase(test.TestCase):
+    _CONF = copy.deepcopy(reconn_action.CONF)
+
+    def setUp(self):
+        super(SurveyActionTestCase, self).setUp()
+        self._LOG = reconn_action.LOG
+
+    def tearDown(self):
+        reconn_action.CONF = copy.deepcopy(self._CONF)
+        reconn_action.LOG = self._LOG
+        super(SurveyActionTestCase, self).tearDown()
+
+    @mock.patch('reconn.action.LogSurvey')
+    @mock.patch('reconn.action.RMQSurvey')
+    def test_create_survey_actions(self, mock_RMQSurvey,
+                                   mock_LogSurvey):
+        CONF = mock.Mock()
+        CONF.rmq_survey = {}
+        CONF.log_survey.log_survey_action_log_file = ''
+        CONF.log_survey.log_survey_action_log_format = ''
+        reconn_action.CONF = CONF
+
+        log = mock.Mock()
+        reconn_action.LOG = log
+
+        mock_log_survey_obj = mock.Mock()
+        mock_LogSurvey.return_value = mock_log_survey_obj
+
+        mock_rmq_survey_obj = mock.Mock()
+        mock_RMQSurvey.return_value = mock_rmq_survey_obj
+
+        action_names = ['rmq_survey', 'log_survey', 'unsupported_action_name']
+        reconn_action.create_survey_actions(action_names)
+        mock_RMQSurvey.assert_called_once_with(CONF.rmq_survey)
+        mock_LogSurvey.assert_called_once_with(CONF.log_survey.log_survey_action_log_file,
+                                               CONF.log_survey.log_survey_action_log_format)
+        error_str = "action name %s not found. Supported actions: %s" % (
+            'unsupported_action_name', reconn_action.supported_actions)
+        log.error.assert_called_once_with(error_str)
+
+        exp_action_mapper = {'log_survey':mock_log_survey_obj, 'rmq_survey': mock_rmq_survey_obj}
+        self.assertEqual(exp_action_mapper, reconn_action._action_mapper)
