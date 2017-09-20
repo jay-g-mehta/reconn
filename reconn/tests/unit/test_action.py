@@ -123,7 +123,9 @@ class RMQSurveyActionTestCase(test.TestCase):
 
         mock_channel.confirm_delivery.assert_called_once_with()
 
-    def test_rmq_survey_init_conn_closed(self):
+    @mock.patch('pika.BlockingConnection')
+    def test_rmq_survey_init_conn_closed(self,
+                                         mock_pika_BlockingConnection):
         host_with_no_rmq = '250.0.0.1'
         rmq_params = dict(
             username='valid_user',
@@ -132,15 +134,15 @@ class RMQSurveyActionTestCase(test.TestCase):
             port=5672,
             virtual_host='/',
         )
+        mock_pika_BlockingConnection.side_effect = pika.exceptions.ConnectionClosed
         self.assertRaises(pika.exceptions.ConnectionClosed,
                           reconn_action.RMQSurvey,
                           rmq_params)
+        mock_pika_BlockingConnection.channel.assert_not_called()
 
-    def test_rmq_survey_init_auth_error(self):
-        # Note(jay): This test may fail if host does not
-        # have RMQ service. Keeping this test to
-        # remember what exception will be thrown when
-        # invalid username/pwd
+    @mock.patch('pika.BlockingConnection')
+    def test_rmq_survey_init_auth_error(self,
+                                        mock_pika_BlockingConnection):
         rmq_params = dict(
             username='invalid_user',
             password='invalid_pwd',
@@ -148,9 +150,11 @@ class RMQSurveyActionTestCase(test.TestCase):
             port=5672,
             virtual_host='/',
         )
+        mock_pika_BlockingConnection.side_effect = pika.exceptions.ProbableAuthenticationError
         self.assertRaises(pika.exceptions.ProbableAuthenticationError,
                           reconn_action.RMQSurvey,
                           rmq_params)
+        mock_pika_BlockingConnection.channel.assert_not_called()
 
 
 class SurveyActionTestCase(test.TestCase):

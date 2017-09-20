@@ -112,7 +112,7 @@ def reconn_file(f):
             # readline returned due to \n
             survey_grp_name, matched_pattern = reconn_utils.search_patterns(
                 survey_pattern_re_objs, line)
-            act_on_pattern(survey_grp_name,matched_pattern, line)
+            act_on_pattern(survey_grp_name, matched_pattern, line)
             if reconn_utils.is_pattern_to_end_reconn(matched_pattern):
                 # End Reconn pattern matched
                 end_reconn = True
