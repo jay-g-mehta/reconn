@@ -174,9 +174,10 @@ def _register_rmq_survey_action_group_opts():
         cfg.StrOpt('password',
                    default='guest',
                    help='password for username to connect to RMQ server'),
-        cfg.IPOpt('host',
-                  default='127.0.0.1',
-                  help='IP addr where RMQ server is running'),
+        cfg.HostAddressOpt('host',
+                           default='127.0.0.1',
+                           help='Host address(IP or hostname) where '
+                                'RMQ server is running'),
         cfg.PortOpt('port',
                     default=5672,
                     help='port on which RMQ server is listening'),
