@@ -277,7 +277,8 @@ class RMQSurvey(object):
         # setup exchange
         try:
             self._channel.exchange_declare(self._exchange_name,
-                                           self._exchange_type)
+                                           self._exchange_type,
+                                           durable=True)
         except pika.exceptions.ChannelClosed as channel_closed_excp:
             # Raised when the exchange is already declared and no permission
             # to redeclare it. Like declaring default exchange of some topic
@@ -287,7 +288,8 @@ class RMQSurvey(object):
         LOG.info("RMQ Exchange %s of type %s created" %
                  (self._exchange_name, self._exchange_type))
 
-        self._channel.queue_declare(self._queue_name)
+        self._channel.queue_declare(self._queue_name,
+                                    durable=True)
         LOG.info("RMQ Queue %s created", self._queue_name)
 
         # Bind queue with Exchange using routing key
