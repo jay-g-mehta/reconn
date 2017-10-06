@@ -150,6 +150,7 @@ class RMQSurvey(object):
         # and not single quote.
 
         # Handling control characters like \r \n.
+        LOG.debug('json load msg: %s', msg)
         tmp_json_obj = json.loads(msg, strict=False)
         msg = json.dumps(tmp_json_obj, ensure_ascii=False)
         return msg
