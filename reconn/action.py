@@ -16,6 +16,8 @@ else:
 from oslo_log import log as logging
 
 from reconn import conf as reconn_conf
+from reconn import exception as reconn_exception
+from reconn import retry as reconn_retry
 
 
 CONF = reconn_conf.CONF
@@ -83,7 +85,7 @@ class LogSurvey(SurveyAction):
         self.f.flush()
 
 
-class RMQSurvey(object):
+class RMQSurvey(SurveyAction):
     """Action that publish messages to RMQ for matched survey patterns"""
     _exchange_type = 'topic'
 
@@ -105,6 +107,7 @@ class RMQSurvey(object):
         # when RMQ server is blocked because of low resource
         self.q = native_queue.Queue(-1)
         self._estb_rmq_connection()
+        self._setup_rmq_exchange_queue()
 
     def destructor(self):
         if self._channel is not None and \
@@ -155,6 +158,7 @@ class RMQSurvey(object):
         msg = json.dumps(tmp_json_obj, ensure_ascii=False)
         return msg
 
+    @reconn_retry.retry(3)
     def _publish_msg_to_rmq(self, msg):
         hdrs = {}
         properties = pika.BasicProperties(app_id='reconn',
@@ -187,13 +191,16 @@ class RMQSurvey(object):
             LOG.exception("%s" % channel_closed_excp)
         except pika.exceptions.ConnectionClosed as connection_closed_excp:
             LOG.exception("%s" % connection_closed_excp)
+            self._reestb_rmq_connection()
+            # raising RetryAgain to retry this function to send the msg
+            raise reconn_exception.RetryAgain
 
     def execute(self, survey_grp_name, pattern, line, *args, **kwargs):
         """Publish message"""
         if self._channel is None or not self._channel.is_open:
             LOG.error("Channel is None or not open. Not publishing message"
                       "pattern: %s, line: %s" % (pattern, line))
-            # TODO(jay): try to re-estb connection and publish
+            self._reestb_rmq_connection()
 
         msg = self._construct_msg(survey_grp_name, pattern, line)
         if self._flag_rmq_blocked is True:
@@ -252,6 +259,9 @@ class RMQSurvey(object):
                   channel, method, properties, body))
 
     def _estb_rmq_connection(self):
+        """Create blocking connection to RMQ broker and a channel.
+        Adds necessary callbacks on connection and channel obj.
+        Sets confirm delivery on channel."""
         credentials = pika.credentials.PlainCredentials(self._username, self._password)
         parameters = pika.ConnectionParameters(
             host=self._host,
@@ -275,6 +285,19 @@ class RMQSurvey(object):
         # Register call back for msg rejected by server
         self._channel.add_on_return_callback(self._msg_rejected_callback)
 
+        # enable RMQ confirm mode, publish confirms
+        self._channel.confirm_delivery()
+
+    def _reestb_rmq_connection(self):
+        """Re-establish RMQ connection and channel"""
+        # to be safe:
+        self.destructor()
+        LOG.info("Re-establishing RMQ connection")
+        self._estb_rmq_connection()
+
+    def _setup_rmq_exchange_queue(self):
+        """Creates 'topic' typed, durable exchange and
+        durable queue and binds them together"""
         # setup exchange
         try:
             self._channel.exchange_declare(self._exchange_name,
@@ -289,6 +312,7 @@ class RMQSurvey(object):
         LOG.info("RMQ Exchange %s of type %s created" %
                  (self._exchange_name, self._exchange_type))
 
+        # setup queue
         self._channel.queue_declare(self._queue_name,
                                     durable=True)
         LOG.info("RMQ Queue %s created", self._queue_name)
@@ -299,9 +323,6 @@ class RMQSurvey(object):
 
         LOG.info("RMQ Queue %s binding with Exchange %s done" %
                  (self._queue_name, self._exchange_name))
-
-        # enable RMQ confirm mode, publish confirms
-        self._channel.confirm_delivery()
 
 
 def create_survey_actions(action_names):
