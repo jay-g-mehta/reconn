@@ -1,0 +1,2 @@
+class RetryAgain(Exception):
+    pass

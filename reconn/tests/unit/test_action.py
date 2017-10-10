@@ -158,6 +158,114 @@ class RMQSurveyActionTestCase(test.TestCase):
                           rmq_params)
         mock_pika_BlockingConnection.channel.assert_not_called()
 
+    @mock.patch('reconn.action.RMQSurvey._setup_rmq_exchange_queue')
+    @mock.patch('reconn.action.RMQSurvey._estb_rmq_connection')
+    @mock.patch('reconn.action.RMQSurvey.destructor')
+    def test_reestb_rmq_conn(self,
+                             mock_rmqsurvey_destructor,
+                             mock_rmqsurvey_estb_conn,
+                             mock_rmqsurvey_setup_exch_queue):
+        rmq_params = dict(
+            username='guest',
+            password='guest',
+            host='10.22.104.223',
+            port=5672,
+            virtual_host='/',
+            exchange_name='test_exchange',
+            queue_name='test_queue',
+            routing_key='test',
+            rmq_message_format='{{"line":"{line}", "matched_pattern":"{matched_pattern}",'
+                               ' "timestamp":"{timestamp}", "uuid":"{uuid}",'
+                               ' "request_id":"{request_id}" }}',
+            rmq_msg_user_data='uuid:6e64ff56-0611-43c5-badc-8a106209e088, '
+                              'request_id: req-57ecbc1d-c64a-4421-8518-fe0ec6feb86d'
+        )
+        rmq_survey_obj = reconn_action.RMQSurvey(rmq_params)
+        mock_rmqsurvey_estb_conn.reset_mock()
+
+        rmq_survey_obj._reestb_rmq_connection()
+
+        mock_rmqsurvey_destructor.assert_called_once_with()
+        mock_rmqsurvey_estb_conn.assert_called_once_with()
+
+    @mock.patch('pika.BasicProperties')
+    @mock.patch('reconn.action.RMQSurvey._setup_rmq_exchange_queue')
+    @mock.patch('reconn.action.RMQSurvey._estb_rmq_connection')
+    def test_publish(self,
+                     mock_rmqsurvey_estb_conn,
+                     mock_rmqsurvey_setup_exch_queue,
+                     mock_pika_BasicProperties):
+        msg = "{'msg': 'testmsg'}"
+        rmq_params = dict(
+            exchange_name='test_exchange',
+            routing_key='test',
+        )
+
+        rmq_survey_obj = reconn_action.RMQSurvey(rmq_params)
+        mock_rmq_channel = mock.Mock(name='mock rmq channel')
+        rmq_survey_obj._channel = mock_rmq_channel
+        mock_properties = mock.Mock(name='mock pika properties obj')
+        mock_pika_BasicProperties.return_value = mock_properties
+
+        rmq_survey_obj._publish_msg_to_rmq(msg)
+
+        mock_pika_BasicProperties.assert_called_once_with(
+            app_id='reconn',
+            content_type='application/json',
+            headers={})
+
+        mock_rmq_channel.publish.assert_called_once_with(
+            rmq_params['exchange_name'],
+            rmq_params['routing_key'],
+            msg,
+            properties=mock_properties,
+            mandatory=True,
+            immediate=False
+        )
+
+    @mock.patch('pika.BasicProperties')
+    @mock.patch('reconn.action.RMQSurvey._setup_rmq_exchange_queue')
+    @mock.patch('reconn.action.RMQSurvey._reestb_rmq_connection')
+    @mock.patch('reconn.action.RMQSurvey._estb_rmq_connection')
+    def test_publish_retry(self,
+                           mock_rmqsurvey_estb_conn,
+                           mock_rmqsurvey_reestb_conn,
+                           mock_rmqsurvey_setup_exch_queue,
+                           mock_pika_BasicProperties):
+        msg = "{'msg': 'testmsg'}"
+        rmq_params = dict(
+            exchange_name='test_exchange',
+            routing_key='test',
+        )
+
+        rmq_survey_obj = reconn_action.RMQSurvey(rmq_params)
+        mock_rmq_channel = mock.Mock(name='mock rmq channel')
+        rmq_survey_obj._channel = mock_rmq_channel
+        mock_properties = mock.Mock(name='mock pika properties obj')
+        mock_pika_BasicProperties.return_value = mock_properties
+        mock_rmq_channel.publish.side_effect = [
+            pika.exceptions.ConnectionClosed, None]
+
+        rmq_survey_obj._publish_msg_to_rmq(msg)
+
+        mock_pika_BasicProperties.assert_called_with(
+            app_id='reconn',
+            content_type='application/json',
+            headers={})
+        self.assertEqual(2, mock_pika_BasicProperties.call_count)
+
+        mock_rmq_channel.publish.assert_called_with(
+            rmq_params['exchange_name'],
+            rmq_params['routing_key'],
+            msg,
+            properties=mock_properties,
+            mandatory=True,
+            immediate=False
+        )
+        self.assertEqual(2, mock_rmq_channel.publish.call_count)
+
+        mock_rmqsurvey_reestb_conn.assert_called_once_with()
+
 
 class SurveyActionTestCase(test.TestCase):
     _CONF = copy.deepcopy(reconn_action.CONF)
