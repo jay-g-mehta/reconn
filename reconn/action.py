@@ -160,6 +160,11 @@ class RMQSurvey(SurveyAction):
 
     @reconn_retry.retry(3)
     def _publish_msg_to_rmq(self, msg):
+        if self._channel is None or not self._channel.is_open:
+            LOG.error("Channel is None or not open. "
+                      "Re-establishing connection")
+            self._reestb_rmq_connection()
+
         hdrs = {}
         properties = pika.BasicProperties(app_id='reconn',
                                           content_type='application/json',
@@ -197,11 +202,6 @@ class RMQSurvey(SurveyAction):
 
     def execute(self, survey_grp_name, pattern, line, *args, **kwargs):
         """Publish message"""
-        if self._channel is None or not self._channel.is_open:
-            LOG.error("Channel is None or not open. Not publishing message"
-                      "pattern: %s, line: %s" % (pattern, line))
-            self._reestb_rmq_connection()
-
         msg = self._construct_msg(survey_grp_name, pattern, line)
         if self._flag_rmq_blocked is True:
             # Note(jay): Race condition here.
