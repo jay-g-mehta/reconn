@@ -115,8 +115,10 @@ class RMQSurveyActionTestCase(test.TestCase):
         mock_channel.add_on_return_callback.assert_called_once()
 
         mock_channel.exchange_declare.assert_called_once_with(rmq_params['exchange_name'],
-                                                              'topic')
-        mock_channel.queue_declare.assert_called_once_with(rmq_params['queue_name'])
+                                                              'topic',
+                                                              durable=True)
+        mock_channel.queue_declare.assert_called_once_with(rmq_params['queue_name'],
+                                                           durable=True)
         mock_channel.queue_bind.assert_called_once_with(rmq_params['queue_name'],
                                                         rmq_params['exchange_name'],
                                                         rmq_params['routing_key'])
