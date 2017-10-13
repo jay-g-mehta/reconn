@@ -1,3 +1,4 @@
+import threading
 import re
 import logging as py_logging
 
@@ -318,3 +319,14 @@ def get_survey_success_action_name(pattern):
         if CONF.get(survey_group_name).pattern == pattern:
             return CONF.get(survey_group_name).success
     return None
+
+
+def log_native_threads():
+    '''Log native threads to log file
+    '''
+    out = "%d active threads: " % threading.active_count()
+    for t in threading.enumerate():
+        out = out + "'%s':(id: %s, is_alive %s, isDaemon: %s), " % (
+            t.name, t.ident, t.is_alive(), t.isDaemon())
+
+    LOG.debug("%s", out.rstrip(", "))

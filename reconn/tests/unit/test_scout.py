@@ -50,6 +50,36 @@ class FileEventHandlerTestCase(test.TestCase):
         else:
             mock_reconn_lock_reconn_file.assert_not_called()
 
+    @ddt.data({'event_dict': {'src_path': '/tmp/test_path/test_file.txt',
+                              'is_directory': False, 'event_type': 'deleted'},
+               'target_file': '/tmp/test_path/test_file.txt',
+               'exp_file_exists': False
+               }
+              )
+    @ddt.unpack
+    @mock.patch('threading.current_thread')
+    def test_on_deleted(self,
+                        mock_threading_current_thread,
+                        event_dict, target_file, exp_file_exists):
+        _target_file_exists = reconn_scout.target_file_exists
+        reconn_scout.target_file_exists = True
+        mock_thread = mock.Mock(name='observer_thread')
+        mock_threading_current_thread.return_value = mock_thread
+        file_path = target_file
+        file_obj = mock.Mock()
+        event_handler = reconn_scout.FileEventHandler(file_path, file_obj)
+
+        event = mock.Mock()
+        for k, v in event_dict.items():
+            setattr(event, k, v)
+
+        event_handler.on_deleted(event)
+
+        self.assertEqual(exp_file_exists, reconn_scout.target_file_exists)
+        mock_thread.stop.assert_called_once_with()
+
+        reconn_scout.target_file_exists = _target_file_exists
+
     @mock.patch('reconn.scout.FileEventHandler')
     @mock.patch('watchdog.observers.Observer')
     def test_register_notification(self,
@@ -107,6 +137,8 @@ class ReconnTestCase(test.TestCase):
 
         _end_reconn = reconn_scout.end_reconn
         reconn_scout.end_reconn = True
+        _target_file_exists = reconn_scout.target_file_exists
+        reconn_scout.target_file_exists = True
 
         mock_reconn_timeout_is_timed_out.return_value(False)
         reconn_scout.reconn_forever(file_obj, mock_watchdog_observer_obj)
@@ -118,6 +150,7 @@ class ReconnTestCase(test.TestCase):
         file_obj.close.assert_called_once_with()
 
         reconn_scout.end_reconn = _end_reconn
+        reconn_scout.target_file_exists = _target_file_exists
 
     @mock.patch('time.sleep')
     @mock.patch('reconn.timeout.ReconnTimeout.is_timed_out')
@@ -132,8 +165,9 @@ class ReconnTestCase(test.TestCase):
 
         _end_reconn = reconn_scout.end_reconn
         reconn_scout.end_reconn = False
-
-        mock_reconn_timeout_is_timed_out.return_value=True
+        _target_file_exists = reconn_scout.target_file_exists
+        reconn_scout.target_file_exists = True
+        mock_reconn_timeout_is_timed_out.return_value = True
 
         reconn_scout.reconn_forever(file_obj, mock_watchdog_observer_obj)
 
@@ -144,6 +178,37 @@ class ReconnTestCase(test.TestCase):
         file_obj.close.assert_called_once_with()
 
         reconn_scout.end_reconn = _end_reconn
+        reconn_scout.target_file_exists = _target_file_exists
+
+    @mock.patch('time.sleep')
+    @mock.patch('reconn.timeout.ReconnTimeout.is_timed_out')
+    @mock.patch('reconn.scout.lock_reconn_file')
+    def test_reconn_forever_when_target_file_exists(
+            self,
+            mock_lock_reconn_file,
+            mock_reconn_timeout_is_timed_out,
+            mock_time_sleep):
+        mock_watchdog_observer_obj = mock.Mock(
+            name='mock_watchdog_observer_obj')
+        file_obj = mock.Mock()
+
+        _end_reconn = reconn_scout.end_reconn
+        reconn_scout.end_reconn = False
+        _target_file_exists = reconn_scout.target_file_exists
+        reconn_scout.target_file_exists = False
+
+        mock_reconn_timeout_is_timed_out.return_value = False
+
+        reconn_scout.reconn_forever(file_obj, mock_watchdog_observer_obj)
+
+        mock_watchdog_observer_obj.start.assert_called_once_with()
+        mock_lock_reconn_file.assert_called_once_with(file_obj)
+        mock_watchdog_observer_obj.stop.assert_called_once_with()
+        mock_watchdog_observer_obj.join.assert_called_once_with()
+        file_obj.close.assert_called_once_with()
+
+        reconn_scout.end_reconn = _end_reconn
+        reconn_scout.target_file_exists = _target_file_exists
 
     @ddt.data({'readline_side_effect': [''],
                'exp_readline_count': 1,

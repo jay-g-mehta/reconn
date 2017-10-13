@@ -23,6 +23,7 @@ file_lock = threading.Lock()
 survey_pattern_re_objs = None
 end_reconn = False
 last_line = ''
+target_file_exists = False
 
 
 class FileEventHandler(watchdog.events.FileSystemEventHandler):
@@ -39,12 +40,27 @@ class FileEventHandler(watchdog.events.FileSystemEventHandler):
             return False
 
     def on_any_event(self, event):
-        LOG.info("Event type:%s is_directory:%s src_path:%s" % (
+        LOG.info("Event type:%s is_directory:%s src_path:%s",
                  event.event_type,
                  event.is_directory,
-                 event.src_path))
-        # LOG.debug("%s %s" % (threading.current_thread().ident,
-        #           threading.current_thread().name))
+                 event.src_path)
+
+    def on_deleted(self, event):
+        global target_file_exists
+        if self._event_on_file_path(event):
+            target_file_exists = False
+            LOG.info("RECONN on target_file is deleted. "
+                     "Event type:%s is_directory:%s src_path:%s",
+                     event.event_type,
+                     event.is_directory,
+                     event.src_path)
+            # NOTE(jay): observer can be stopped now safely.
+            # observer thread periodically checks if it has to stop
+            # and the below is a safe ask to observer to exit
+            LOG.info("Stopping observer thread. Thread %s %s exiting",
+                     threading.current_thread().ident,
+                     threading.current_thread().name)
+            threading.current_thread().stop()
 
     def on_modified(self, event):
         # LOG.debug("%s %s" % (threading.current_thread().ident,
@@ -56,12 +72,17 @@ class FileEventHandler(watchdog.events.FileSystemEventHandler):
         # time.sleep(5)
 
         if self._event_on_file_path(event):
-            if reconn_timeout.ReconnTimeout.is_timed_out() is False:
-                # Allow main thread to gain control & terminate.
-                # TODO(jay): If possible, stop observer here.
-                time.sleep(1)
-
-            lock_reconn_file(self._file)
+            if reconn_timeout.ReconnTimeout.is_timed_out() is True:
+                # NOTE(jay): observer can be stopped now safely.
+                # observer thread periodically checks if it has to stop
+                # and the below is a safe ask to observer to exit
+                LOG.info("Timeout!!! Stopping observer thread. "
+                         "Thread %s %s exiting",
+                         threading.current_thread().ident,
+                         threading.current_thread().name)
+                threading.current_thread().stop()
+            else:
+                lock_reconn_file(self._file)
 
 
 def register_notification(file_path, file_obj):
@@ -155,6 +176,11 @@ def reconn_forever(console_file, observer):
     observer.start()
     # Wait for observer thread to start. Don't want to miss any events
     time.sleep(2)
+    LOG.debug("observer id:%s, is_alive %s, is_daemon: %s",
+              observer.ident,
+              observer.is_alive(),
+              observer.isDaemon())
+    reconn_utils.log_native_threads()
 
     # Case: when log file has all data in it and no more writes will happen,
     # so main thread has to reconn once.
@@ -164,9 +190,11 @@ def reconn_forever(console_file, observer):
     try:
         while True:
             time.sleep(1)
+            # reconn_utils.log_native_threads()
 
             if (end_reconn is True or
-                    reconn_timeout.ReconnTimeout.is_timed_out() is True):
+                    reconn_timeout.ReconnTimeout.is_timed_out() is True or
+                    target_file_exists is False):
                 break
     except KeyboardInterrupt:
         terminate_reconn(observer, console_file)
@@ -197,15 +225,19 @@ def init_reconn(argv):
 
 def terminate_reconn(observer, file):
     '''Reconn closure activities executed here.
-    Called when timeout or end reconn pattern matched.
+    Called when timeout or end reconn pattern matched or target file deleted.
     Discontinue any more reconn on files.'''
-    observer.stop()
+    LOG.info("Terminating RECONN. Safe clean up in progress.")
+    if observer.is_alive():
+        observer.stop()
     observer.join()
+    reconn_utils.log_native_threads()
     file.close()
     reconn_action.destroy_survey_actions()
 
 
 def begin_reconn():
+    global target_file_exists
     LOG.info("Reconn target file: %s", CONF.target_file)
     try:
         console_file = io.open(CONF.target_file, 'rb')
@@ -217,13 +249,14 @@ def begin_reconn():
         LOG.error("Failed to open console log file. Error: %s", e)
         LOG.info("Exiting")
         sys.exit(1)
-
+    target_file_exists = True
     observer = register_notification(CONF.target_file, console_file)
 
     # Set program terminate time out
     reconn_timeout.ReconnTimeout.set_timeout(CONF.timeout * 60)
 
     reconn_forever(console_file, observer)
+    LOG.info('RECONN exiting')
 
 
 def main():
