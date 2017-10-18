@@ -223,7 +223,7 @@ def init_reconn(argv):
     reconn_action.create_survey_actions(success_action_names)
 
 
-def terminate_reconn(observer, file):
+def terminate_reconn(observer, target_file):
     '''Reconn closure activities executed here.
     Called when timeout or end reconn pattern matched or target file deleted.
     Discontinue any more reconn on files.'''
@@ -232,7 +232,7 @@ def terminate_reconn(observer, file):
         observer.stop()
     observer.join()
     reconn_utils.log_native_threads()
-    file.close()
+    target_file.close()
     reconn_action.destroy_survey_actions()
 
 
