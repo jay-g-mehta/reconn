@@ -73,7 +73,7 @@ class LogSurvey(SurveyAction):
         s = self.log_format
         try:
             s = s.format(
-                timestamp=datetime.datetime.now().strftime(
+                timestamp=datetime.datetime.utcnow().strftime(
                     '%Y-%m-%d %H:%M:%S.%f'),
                 line=line,
                 matched_pattern=pattern,
@@ -137,7 +137,7 @@ class RMQSurvey(SurveyAction):
              'name': survey_grp_name,
              'matched_pattern': pattern,
              'timestamp':
-                 datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+                 datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
              })
 
         try:
