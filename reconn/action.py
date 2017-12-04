@@ -1,4 +1,5 @@
-'''This file defines survey actions, that can be taken for matched survey patterns'''
+"""This file defines survey actions,
+   that can be taken for matched survey patterns"""
 
 from abc import ABCMeta, abstractmethod
 import io
@@ -8,16 +9,16 @@ import pika
 import json
 import six
 
-if six.PY2:
-    import Queue as native_queue
-else:
-    import queue as native_queue
-
 from oslo_log import log as logging
 
 from reconn import conf as reconn_conf
 from reconn import exception as reconn_exception
 from reconn import retry as reconn_retry
+
+if six.PY2:
+    import Queue as native_queue
+else:
+    import queue as native_queue
 
 
 CONF = reconn_conf.CONF
@@ -238,8 +239,8 @@ class RMQSurvey(SurveyAction):
          that RabbitMQ is low on resources.
          Voluntarily suspend publishing, until connection is unblocked
          """
-        LOG.exception("RMQ server is low on resource. Halting publishing until RMQ"
-                      "acknowledges healthy, and unblocked")
+        LOG.exception("RMQ server is low on resource. Halting publishing "
+                      "until RMQ acknowledges healthy, and unblocked")
         self._flag_rmq_blocked = True
 
     def _connection_unblocked_callback(self, method):
@@ -262,7 +263,8 @@ class RMQSurvey(SurveyAction):
         """Create blocking connection to RMQ broker and a channel.
         Adds necessary callbacks on connection and channel obj.
         Sets confirm delivery on channel."""
-        credentials = pika.credentials.PlainCredentials(self._username, self._password)
+        credentials = pika.credentials.PlainCredentials(self._username,
+                                                        self._password)
         parameters = pika.ConnectionParameters(
             host=self._host,
             port=self._port,
@@ -353,4 +355,3 @@ def destroy_survey_actions():
     for action in _action_mapper.values():
         action.destructor()
     _action_mapper.clear()
-

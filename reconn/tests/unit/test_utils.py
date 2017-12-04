@@ -50,8 +50,9 @@ class ReconnUtilTestCase(test.TestCase):
 
     def test_reconn_opt_survey_group_is_none(self):
         reconn_utils.register_reconn_opts()
-        self.assertRaises(ValueError,
-                          reconn_utils.register_configured_reconn_survey_groups)
+        self.assertRaises(
+            ValueError,
+            reconn_utils.register_configured_reconn_survey_groups)
 
     def test_default_survey_action(self):
         CONF = reconn_utils.CONF
@@ -75,8 +76,9 @@ class ReconnUtilTestCase(test.TestCase):
         reconn_utils.register_configured_reconn_survey_groups()
         CONF.test_survey_group.success = 'log_survey'
 
-        valid_log_survey_action_opts = ['log_survey_action_log_format',
-                                        'log_survey_action_log_file']
+        valid_log_survey_action_opts = [
+            'log_survey_action_log_format',
+            'log_survey_action_log_file']
         reconn_utils.register_reconn_survey_action_groups()
         for opt in CONF.log_survey:
             self.assertIn(opt, valid_log_survey_action_opts)
@@ -121,7 +123,8 @@ class ReconnUtilTestCase(test.TestCase):
 
     @ddt.data({'line': 'Line with matching pattern',
                'exp_return': ('test_survey_group', 'matching pattern')},
-              {'line': 'Line without matching any pattern', 'exp_return': (None, None)})
+              {'line': 'Line without matching any pattern',
+               'exp_return': (None, None)})
     @ddt.unpack
     def test_search_patterns(self, line, exp_return):
         CONF = reconn_utils.CONF
@@ -134,9 +137,8 @@ class ReconnUtilTestCase(test.TestCase):
         ret_value = reconn_utils.search_patterns(re_objs, line)
         self.assertEqual(exp_return, ret_value)
 
-
-
-    @ddt.data({'line': 'Matching reconn end pattern', 'exp_return': 'end pattern'},
+    @ddt.data({'line': 'Matching reconn end pattern',
+               'exp_return': 'end pattern'},
               {'line': 'No end reconn pattern', 'exp_return': None})
     @ddt.unpack
     def test_search_end_reconn_pattern(self, line, exp_return):

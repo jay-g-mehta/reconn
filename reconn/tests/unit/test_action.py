@@ -16,15 +16,19 @@ class LogSurveyActionTestCase(test.TestCase):
     def tearDown(self):
         super(LogSurveyActionTestCase, self).tearDown()
 
-    @ddt.data({'log_file': '/tmp/no_file_exists.txt',
-               'log_format': '{timestamp} {{ {line} : {matched_pattern} : {name} }}',
-               'exp_log_format': '{timestamp} {{ {line} : {matched_pattern} : {name} }}'
-               },
-              {'log_file': '/tmp/no_file_exists.txt',
-               'log_format': '{timestamp} {{ {line} : {matched_pattern} : {name} }}\\r\\n',
-               'exp_log_format': '{timestamp} {{ {line} : {matched_pattern} : {name} }}\r\n'
-               },
-              )
+    @ddt.data(
+        {'log_file': '/tmp/no_file_exists.txt',
+         'log_format':
+             '{timestamp} {{ {line} : {matched_pattern} : {name} }}',
+         'exp_log_format':
+             '{timestamp} {{ {line} : {matched_pattern} : {name} }}'
+         },
+        {'log_file': '/tmp/no_file_exists.txt',
+         'log_format':
+             '{timestamp} {{ {line} : {matched_pattern} : {name} }}\\r\\n',
+         'exp_log_format':
+             '{timestamp} {{ {line} : {matched_pattern} : {name} }}\r\n'
+         },)
     @ddt.unpack
     def test_log_survey_init(self, log_file,
                              log_format,
@@ -34,7 +38,8 @@ class LogSurveyActionTestCase(test.TestCase):
         self.assertEqual(exp_log_format, log_survey_obj.log_format)
 
     @ddt.data({'log_file': '/invalid_path/test_file.txt',
-               'log_format': '{timestamp} {{ {line} : {matched_pattern} : {name} }}',
+               'log_format':
+                   '{timestamp} {{ {line} : {matched_pattern} : {name} }}',
                'exp_exception': IOError
                })
     @ddt.unpack
@@ -93,11 +98,13 @@ class RMQSurveyActionTestCase(test.TestCase):
             exchange_name='test_exchange',
             queue_name='test_queue',
             routing_key='test',
-            rmq_message_format='{{"line":"{line}", "matched_pattern":"{matched_pattern}",'
+            rmq_message_format='{{"line":"{line}",'
+                               ' "matched_pattern":"{matched_pattern}",'
                                ' "timestamp":"{timestamp}", "uuid":"{uuid}",'
                                ' "request_id":"{request_id}" }}',
             rmq_msg_user_data='uuid:6e64ff56-0611-43c5-badc-8a106209e088, '
-                              'request_id: req-57ecbc1d-c64a-4421-8518-fe0ec6feb86d'
+                              'request_id:'
+                              'req-57ecbc1d-c64a-4421-8518-fe0ec6feb86d'
         )
 
         mock_connection = mock.Mock(name='mock_connection')
@@ -108,20 +115,25 @@ class RMQSurveyActionTestCase(test.TestCase):
 
         rmq_survey_obj = reconn_action.RMQSurvey(rmq_params)
 
-        mock_connection.add_on_connection_blocked_callback.assert_called_once()
-        mock_connection.add_on_connection_unblocked_callback.assert_called_once()
+        mock_connection.add_on_connection_blocked_callback.\
+            assert_called_once()
+        mock_connection.add_on_connection_unblocked_callback.\
+            assert_called_once()
         mock_connection.channel.assert_called_once_with()
 
         mock_channel.add_on_return_callback.assert_called_once()
 
-        mock_channel.exchange_declare.assert_called_once_with(rmq_params['exchange_name'],
-                                                              'topic',
-                                                              durable=True)
-        mock_channel.queue_declare.assert_called_once_with(rmq_params['queue_name'],
-                                                           durable=True)
-        mock_channel.queue_bind.assert_called_once_with(rmq_params['queue_name'],
-                                                        rmq_params['exchange_name'],
-                                                        rmq_params['routing_key'])
+        mock_channel.exchange_declare.assert_called_once_with(
+            rmq_params['exchange_name'],
+            'topic',
+            durable=True)
+        mock_channel.queue_declare.assert_called_once_with(
+            rmq_params['queue_name'],
+            durable=True)
+        mock_channel.queue_bind.assert_called_once_with(
+            rmq_params['queue_name'],
+            rmq_params['exchange_name'],
+            rmq_params['routing_key'])
 
         mock_channel.confirm_delivery.assert_called_once_with()
 
@@ -136,7 +148,8 @@ class RMQSurveyActionTestCase(test.TestCase):
             port=5672,
             virtual_host='/',
         )
-        mock_pika_BlockingConnection.side_effect = pika.exceptions.ConnectionClosed
+        mock_pika_BlockingConnection.side_effect = \
+            pika.exceptions.ConnectionClosed
         self.assertRaises(pika.exceptions.ConnectionClosed,
                           reconn_action.RMQSurvey,
                           rmq_params)
@@ -152,7 +165,8 @@ class RMQSurveyActionTestCase(test.TestCase):
             port=5672,
             virtual_host='/',
         )
-        mock_pika_BlockingConnection.side_effect = pika.exceptions.ProbableAuthenticationError
+        mock_pika_BlockingConnection.side_effect = \
+            pika.exceptions.ProbableAuthenticationError
         self.assertRaises(pika.exceptions.ProbableAuthenticationError,
                           reconn_action.RMQSurvey,
                           rmq_params)
@@ -174,11 +188,13 @@ class RMQSurveyActionTestCase(test.TestCase):
             exchange_name='test_exchange',
             queue_name='test_queue',
             routing_key='test',
-            rmq_message_format='{{"line":"{line}", "matched_pattern":"{matched_pattern}",'
+            rmq_message_format='{{"line":"{line}",'
+                               ' "matched_pattern":"{matched_pattern}",'
                                ' "timestamp":"{timestamp}", "uuid":"{uuid}",'
                                ' "request_id":"{request_id}" }}',
             rmq_msg_user_data='uuid:6e64ff56-0611-43c5-badc-8a106209e088, '
-                              'request_id: req-57ecbc1d-c64a-4421-8518-fe0ec6feb86d'
+                              'request_id: '
+                              'req-57ecbc1d-c64a-4421-8518-fe0ec6feb86d'
         )
         rmq_survey_obj = reconn_action.RMQSurvey(rmq_params)
         mock_rmqsurvey_estb_conn.reset_mock()
@@ -301,11 +317,13 @@ class SurveyActionTestCase(test.TestCase):
         action_names = ['rmq_survey', 'log_survey', 'unsupported_action_name']
         reconn_action.create_survey_actions(action_names)
         mock_RMQSurvey.assert_called_once_with(CONF.rmq_survey)
-        mock_LogSurvey.assert_called_once_with(CONF.log_survey.log_survey_action_log_file,
-                                               CONF.log_survey.log_survey_action_log_format)
+        mock_LogSurvey.assert_called_once_with(
+            CONF.log_survey.log_survey_action_log_file,
+            CONF.log_survey.log_survey_action_log_format)
         error_str = "action name %s not found. Supported actions: %s" % (
             'unsupported_action_name', reconn_action.supported_actions)
         log.error.assert_called_once_with(error_str)
 
-        exp_action_mapper = {'log_survey':mock_log_survey_obj, 'rmq_survey': mock_rmq_survey_obj}
+        exp_action_mapper = {'log_survey': mock_log_survey_obj,
+                             'rmq_survey': mock_rmq_survey_obj}
         self.assertEqual(exp_action_mapper, reconn_action._action_mapper)

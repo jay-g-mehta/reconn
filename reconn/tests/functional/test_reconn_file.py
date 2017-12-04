@@ -15,10 +15,14 @@ class ReconnTestCase(test.TestCase):
 
         reconn.setup_reconn()
         prefix_path = os.getcwd()
-        target_file = prefix_path + '/reconn/tests/functional/sample_files/console.log'
-        exp_pattern = ['login:', 'Starting network', 'initramfs:', 'rc.sysinit']
-        config_file = prefix_path + '/reconn/tests/functional/sample_files/reconn_log_survey.conf'
-        reconn_log_file = '/tmp/' + self.id() + '_' + str(time.time) + '_reconn.log'
+        target_file = prefix_path + \
+            '/reconn/tests/functional/sample_files/console.log'
+        exp_pattern = ['login:', 'Starting network',
+                       'initramfs:', 'rc.sysinit']
+        config_file = prefix_path + \
+            '/reconn/tests/functional/sample_files/reconn_log_survey.conf'
+        reconn_log_file = '/tmp/' + self.id() + '_' + str(time.time) +\
+                          '_reconn.log'
         # As defined in the config file
         survey_log_file = '/tmp/reconn_functional_test_reconn_survey.log'
 
@@ -34,6 +38,6 @@ class ReconnTestCase(test.TestCase):
                     break
                 self.assertIn(json.loads(line)["pattern"], exp_pattern)
 
-        #clean up
+        # clean up
         os.remove(survey_log_file)
         os.remove(reconn_log_file)

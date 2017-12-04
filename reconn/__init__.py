@@ -22,7 +22,8 @@ def start_reconn(target_file,
         '--log-file': log_file,
     }
     if survey_action_message_format is not None:
-        args_dict['--survey_action_message_format'] = survey_action_message_format
+        args_dict[
+            '--survey_action_message_format'] = survey_action_message_format
     if user_data is not None:
         args_dict['--msg_user_data'] = user_data
 
