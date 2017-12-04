@@ -112,8 +112,8 @@ def reconn_file(f):
 
     eof = False
     while(not eof and
-              not end_reconn and
-              not reconn_timeout.ReconnTimeout.is_timed_out()):
+            not end_reconn and
+            not reconn_timeout.ReconnTimeout.is_timed_out()):
         line = f.readline()
 
         if line == '':
@@ -137,10 +137,10 @@ def reconn_file(f):
             if reconn_utils.is_pattern_to_end_reconn(matched_pattern):
                 # End Reconn pattern matched
                 end_reconn = True
-                #print line.rstrip('\n')
+                # print line.rstrip('\n')
                 return
 
-        #print line.rstrip('\n')
+        # print line.rstrip('\n')
 
     # Reconn last line for patterns:
     if (end_reconn is False and

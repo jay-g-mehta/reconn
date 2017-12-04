@@ -155,10 +155,11 @@ class ReconnTestCase(test.TestCase):
     @mock.patch('time.sleep')
     @mock.patch('reconn.timeout.ReconnTimeout.is_timed_out')
     @mock.patch('reconn.scout.lock_reconn_file')
-    def test_reconn_forever_when_reconn_timeout(self,
-                                                mock_lock_reconn_file,
-                                                mock_reconn_timeout_is_timed_out,
-                                                mock_time_sleep):
+    def test_reconn_forever_when_reconn_timeout(
+            self,
+            mock_lock_reconn_file,
+            mock_reconn_timeout_is_timed_out,
+            mock_time_sleep):
         mock_watchdog_observer_obj = mock.Mock(
             name='mock_watchdog_observer_obj')
         file_obj = mock.Mock()
@@ -224,13 +225,16 @@ class ReconnTestCase(test.TestCase):
                },
               {'readline_side_effect': ['line 1', ''],
                'exp_readline_count': 2,
-               'search_pattern_side_effect': [('test_survey_grp', 'line')],
+               'search_pattern_side_effect': [('test_survey_grp',
+                                               'line')],
                'exp_search_pattern_count': 1,
                'end_reconn_val': False
                },
-              {'readline_side_effect': ['line with end reconn \n', 'line not read'],
+              {'readline_side_effect': ['line with end reconn \n',
+                                        'line not read'],
                'exp_readline_count': 1,
-               'search_pattern_side_effect': [('test_end_survey_grp', 'end')],
+               'search_pattern_side_effect': [('test_end_survey_grp',
+                                               'end')],
                'exp_search_pattern_count': 1,
                'end_reconn_val': True
                },
@@ -265,4 +269,3 @@ class ReconnTestCase(test.TestCase):
                          mock_reconn_act_on_pattern.call_count)
         self.assertEqual(exp_search_pattern_count,
                          mock_reconn_search_patterns.call_count)
-
